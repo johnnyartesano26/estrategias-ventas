@@ -310,7 +310,15 @@ function buildEditFields(c) {
     { path: 'propuestas_activacion_producto.enviadas_12m', label: 'Cross-sell enviados (12m)', orig: orig('propuestas_activacion_producto.enviadas_12m'), type: 'number', min: 0, max: 100, hint: 'Propuestas de nuevos estilos de cerveza que el cliente no ha comprado antes' },
     { path: 'propuestas_activacion_producto.aceptadas', label: 'Cross-sell aceptados (12m)', orig: orig('propuestas_activacion_producto.aceptadas'), type: 'number', min: 0, max: 100, hint: 'Cuántos estilos nuevos aceptó probar. Alimenta el Upsell Potential' },
     { path: 'calidad_del_servicio.quejas_ultimo_trimestre', label: 'Quejas (último trimestre)', orig: orig('calidad_del_servicio.quejas_ultimo_trimestre'), type: 'number', min: 0, max: 50, hint: 'A mayor número de quejas, mayor riesgo de churn' },
-    { path: 'tiempo_de_entrega.entregas_a_tiempo_pct', label: 'Entregas a tiempo (%)', orig: Math.round(orig('tiempo_de_entrega.entregas_a_tiempo_pct')*100), type: 'range', min: 30, max: 100, hint: 'Desliza: afecta riesgo de churn y calidad de servicio' },
+    { path: 'tiempo_de_entrega.entregas_a_tiempo_pct', label: 'Entregas a tiempo', orig: Math.round(orig('tiempo_de_entrega.entregas_a_tiempo_pct')*100), type: 'select', hint: 'Tiempo real de entrega. Afecta riesgo de churn y calidad de servicio',
+      options: [
+        { val: 1.00, label: 'Mismo día — 100%' },
+        { val: 0.90, label: 'Al día siguiente — 90%' },
+        { val: 0.50, label: 'A los 3 días — 50%' },
+        { val: 0.35, label: 'A los 5 días — 35%' },
+        { val: 0.40, label: 'A los 8 días — 40%' },
+        { val: 0.30, label: 'A los 15 días — 30%' },
+      ]},
     { path: 'participacion_en_eventos.asistencias', label: 'Asistencias a eventos (12m)', orig: orig('participacion_en_eventos.asistencias'), type: 'number', min: 0, max: 20, hint: 'A mayor participación, mejor upsell potential' },
   ];
 
@@ -326,6 +334,14 @@ function buildEditFields(c) {
     if (f.type === 'range') {
       html += `<input type="range" id="edit_${f.path.replace(/\./g,'_')}" value="${displayVal}" min="${f.min}" max="${f.max}" oninput="onEditField('${c.id}','${f.path}',this.value,'range')">
         <div class="current-val">Guardado: <strong>${displayVal}%</strong> | JSON original: ${f.orig}%</div>`;
+    } else if (f.type === 'select') {
+      html += `<select id="edit_${f.path.replace(/\./g,'_')}" onchange="onEditField('${c.id}','${f.path}',this.value,'select')" style="width:100%;padding:6px 10px;background:#0f172a;color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:0.85rem;">`;
+      f.options.forEach(opt => {
+        const sel = Math.abs(displayVal - opt.val) < 0.01 ? 'selected' : '';
+        html += `<option value="${opt.val}" ${sel}>${opt.label}</option>`;
+      });
+      html += `</select>
+        <div class="current-val">JSON original: ${Math.round(f.orig)}%</div>`;
     } else {
       html += `<input type="number" id="edit_${f.path.replace(/\./g,'_')}" value="${displayVal}" min="${f.min}" max="${f.max}" onchange="onEditField('${c.id}','${f.path}',this.value,'number')">
         <div class="current-val">JSON original de referencia: <strong>${f.orig}</strong></div>`;
@@ -372,7 +388,7 @@ function saveAndRecalc(cid) {
   fieldPaths.forEach(path => {
     const el = document.getElementById('edit_' + path.replace(/\./g,'_'));
     if (el) {
-      const val = path.includes('entregas_a_tiempo') ? parseInt(el.value) / 100 : parseFloat(el.value) || 0;
+      const val = path.includes('entregas_a_tiempo') ? parseFloat(el.value) : parseFloat(el.value) || 0;
       editorData[path] = val;
     }
   });
@@ -386,11 +402,10 @@ function saveAndRecalc(cid) {
 }
 
 function onEditField(cid, path, value, type) {
-  // Just update the display, save happens on button click
   const el = document.getElementById('edit_' + path.replace(/\./g,'_'));
-  if (el && type === 'range') {
-    const field = el.closest('.edit-field');
-    if (field) {
+  if (type === 'range' || type === 'select') {
+    const field = el ? el.closest('.edit-field') : null;
+    if (field && type === 'range') {
       const cv = field.querySelector('.current-val');
       if (cv) {
         const origMatch = cv.textContent.match(/JSON original: (\d+)%/);
