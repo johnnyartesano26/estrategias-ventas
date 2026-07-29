@@ -916,26 +916,36 @@ function renderCustomerKPIs(c) {
     </div>
   `;
 
-  // Draw sparkline
-  if (sparkData.length >= 2) {
+  // Draw sparkline (1 punto = dot, 2+ = linea)
+  if (sparkData.length >= 1) {
     setTimeout(()=>{
       const ctx = document.getElementById('chartSpark');
       if (!ctx) return;
-      // Destroy existing chart on this canvas if any
       const existing = Chart.getChart(ctx);
       if (existing) existing.destroy();
+      const isSingle = sparkData.length === 1;
       charts['chartSpark'] = new Chart(ctx, {
-        type: 'line',
+        type: isSingle ? 'scatter' : 'line',
         data: {
           labels: sparkLabels,
-          datasets: [{ data: sparkData, borderColor: '#38bdf8', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#38bdf8', fill: false, tension: 0.3 }]
+          datasets: [{
+            data: sparkData,
+            borderColor: '#38bdf8',
+            borderWidth: isSingle ? 0 : 2,
+            pointRadius: isSingle ? 8 : 3,
+            pointBackgroundColor: '#38bdf8',
+            pointBorderColor: '#38bdf8',
+            fill: false,
+            tension: 0.3,
+            showLine: !isSingle
+          }]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
-            y: { ticks: { color: '#64748b', font: { size: 9 }, callback: v => (v/1000).toFixed(0)+'k' }, grid: { color: '#334155' } }
+            y: { ticks: { color: '#64748b', font: { size: 9 }, callback: v => (v/1000).toFixed(0)+'k' }, grid: { color: '#334155' }, min: isSingle ? sparkData[0]*0.5 : undefined }
           }
         }
       });
