@@ -356,7 +356,8 @@ function onEditField(cid, path, value, type) {
 function recalcSingleCustomer(cid) {
   const c = getCustomer(cid);
   if (!c) return;
-  // Re-render KPIs + strategies only (charts and history stay)
+  // Destroy sparkline chart before re-rendering
+  if (charts['chartSpark']) { charts['chartSpark'].destroy(); delete charts['chartSpark']; }
   renderCustomerKPIs(c);
   renderStrategiesSingle(c);
 }
