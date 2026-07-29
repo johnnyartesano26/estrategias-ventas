@@ -173,7 +173,7 @@
     <div class="method-grid">
       <div class="method-item">
         <strong>Probabilidad de Recompra (30d)</strong>
-        <span>Peso: 30% Frecuencia de compra + 30% Días desde última compra (recencia) + 20% Calidad de servicio + 20% Tasa de conversión de activaciones</span>
+        <span>Peso: 30% Frecuencia de compra + 30% Días desde última compra + 20% Calidad de servicio + 20% Tasa de conversión (blend: 50% visitas concretadas/enviadas + 50% tracking PLV/Capacit./Eventos)</span>
         <div class="weight">Fuente: Google Sheets (fecha última compra + frecuencia mensual)</div>
       </div>
       <div class="method-item">
@@ -297,10 +297,10 @@ function buildEditFields(c) {
   const hasOverride = (path) => customerOverrides[c.id] && curr(path) !== orig(path);
 
   const fields = [
-    { path: 'propuestas_de_activacion.enviadas_12m', label: 'Activaciones enviadas (12m)', orig: orig('propuestas_de_activacion.enviadas_12m'), type: 'number', min: 0, max: 100, hint: 'Propuestas de activación general enviadas al cliente en 12 meses' },
-    { path: 'propuestas_de_activacion.aceptadas', label: 'Activaciones aceptadas (12m)', orig: orig('propuestas_de_activacion.aceptadas'), type: 'number', min: 0, max: 100, hint: 'Cuántas aceptó. Afecta tasa de conversión y probabilidad de recompra' },
-    { path: 'propuestas_activacion_producto.enviadas_12m', label: 'Activ. producto enviadas (12m)', orig: orig('propuestas_activacion_producto.enviadas_12m'), type: 'number', min: 0, max: 100, hint: 'Propuestas de nuevos productos/estilos enviadas' },
-    { path: 'propuestas_activacion_producto.aceptadas', label: 'Activ. producto aceptadas (12m)', orig: orig('propuestas_activacion_producto.aceptadas'), type: 'number', min: 0, max: 100, hint: 'Influye en el Upsell Potential Score' },
+    { path: 'propuestas_de_activacion.enviadas_12m', label: 'Visitas/Ofertas enviadas (12m)', orig: orig('propuestas_de_activacion.enviadas_12m'), type: 'number', min: 0, max: 100, hint: 'Total de visitas, llamadas, emails y ofertas enviadas al cliente en 12 meses' },
+    { path: 'propuestas_de_activacion.aceptadas', label: 'Visitas/Ofertas concretadas (12m)', orig: orig('propuestas_de_activacion.aceptadas'), type: 'number', min: 0, max: 100, hint: 'Cuántas de esas visitas/ofertas resultaron en un pedido. Define la tasa de conversión' },
+    { path: 'propuestas_activacion_producto.enviadas_12m', label: 'Cross-sell enviados (12m)', orig: orig('propuestas_activacion_producto.enviadas_12m'), type: 'number', min: 0, max: 100, hint: 'Propuestas de nuevos estilos de cerveza que el cliente no ha comprado antes' },
+    { path: 'propuestas_activacion_producto.aceptadas', label: 'Cross-sell aceptados (12m)', orig: orig('propuestas_activacion_producto.aceptadas'), type: 'number', min: 0, max: 100, hint: 'Cuántos estilos nuevos aceptó probar. Alimenta el Upsell Potential' },
     { path: 'calidad_del_servicio.quejas_ultimo_trimestre', label: 'Quejas (último trimestre)', orig: orig('calidad_del_servicio.quejas_ultimo_trimestre'), type: 'number', min: 0, max: 50, hint: 'A mayor número de quejas, mayor riesgo de churn' },
     { path: 'tiempo_de_entrega.entregas_a_tiempo_pct', label: 'Entregas a tiempo (%)', orig: Math.round(orig('tiempo_de_entrega.entregas_a_tiempo_pct')*100), type: 'range', min: 30, max: 100, hint: 'Desliza: afecta riesgo de churn y calidad de servicio' },
     { path: 'participacion_en_eventos.asistencias', label: 'Asistencias a eventos (12m)', orig: orig('participacion_en_eventos.asistencias'), type: 'number', min: 0, max: 20, hint: 'A mayor participación, mejor upsell potential' },
@@ -696,7 +696,7 @@ function renderAllKPIs() {
   document.getElementById('kpiContainer').innerHTML = `
     <div class="card"><h3>Ticket Promedio General</h3><div class="kpi info">$${avgTicket.toLocaleString('es-ES',{maximumFractionDigits:0})}</div></div>
     <div class="card"><h3>Potencial Crecimiento Medio</h3><div class="kpi ${avgGrowth>=7?'positive':avgGrowth>=5?'warning':'danger'}">${avgGrowth.toFixed(1)}/10</div></div>
-    <div class="card"><h3>Tasa Conversion Activaciones</h3><div class="kpi ${activationsRate>=60?'positive':'warning'}">${activationsRate.toFixed(1)}%</div></div>
+    <div class="card"><h3>Tasa Conversion Visitas/Ofertas</h3><div class="kpi ${activationsRate>=60?'positive':'warning'}">${activationsRate.toFixed(1)}%</div></div>
     <div class="card"><h3>Clientes en Riesgo (Churn)</h3><div class="kpi ${highRisk<=2?'positive':highRisk<=4?'warning':'danger'}">${highRisk}</div></div>
   `;
 }
@@ -710,7 +710,7 @@ function renderComparisonCharts() {
     </div>
     <div class="grid grid-2">
       <div class="card"><h3>Calidad de Servicio vs Producto</h3><div class="chart-container tall"><canvas id="chartQuality"></canvas></div></div>
-      <div class="card"><h3>Tasa de Conversion de Activaciones</h3><div class="chart-container tall"><canvas id="chartActivation"></canvas></div></div>
+      <div class="card"><h3>Tasa de Conversion (Visitas → Pedidos)</h3><div class="chart-container tall"><canvas id="chartActivation"></canvas></div></div>
     </div>
     <div class="grid grid-2">
       <div class="card"><h3>Sensibilidad Tributaria y su Impacto</h3><div class="chart-container tall"><canvas id="chartTax"></canvas></div></div>
@@ -738,8 +738,8 @@ function renderComparisonCharts() {
 
   makeBar('chartActivation', names,
     [
-      { label:'Activacion General (%)', data:customers.map(c=>c.propuestas_de_activacion.tasa_conversion*100), bg:customers.map(()=>'#34d399') },
-      { label:'Activacion Producto (%)', data:customers.map(c=>c.propuestas_activacion_producto.tasa_conversion*100), bg:customers.map(()=>'#a78bfa') }
+      { label:'Conversion Visitas (%)', data:customers.map(c=>c.propuestas_de_activacion.tasa_conversion*100), bg:customers.map(()=>'#34d399') },
+      { label:'Cross-sell (%)', data:customers.map(c=>c.propuestas_activacion_producto.tasa_conversion*100), bg:customers.map(()=>'#a78bfa') }
     ],
     { yMax:100 });
 
@@ -794,7 +794,7 @@ function renderCustomerKPIs(c) {
       <div class="kpi ${probRecompra>=0.7?'positive':probRecompra>=0.4?'warning':'danger'}">${(probRecompra*100).toFixed(0)}%</div>
       <div class="progress-bar"><div class="progress-fill ${probRecompra>=0.7?'high':probRecompra>=0.4?'med':'low'}" style="width:${probRecompra*100}%"></div></div>
       <div class="kpi-meta">Última compra: <strong>${formatFecha(ultimaFecha)}</strong> (hace ${diasDesdeUltima}d)</div>
-      <div class="kpi-meta">Activaciones (blend): <strong>${actRate}%</strong> — Tracking: <strong>${actDetalle}%</strong> (PLV+vasos+capacitaciones)</div>
+      <div class="kpi-meta">Activaciones (blend 50/50): <strong>${actRate}%</strong> — Seguimiento: <strong>${actDetalle}%</strong> (PLV + Capacit. + Eventos)</div>
       <div class="chart-container spark" style="margin-top:6px;"><canvas id="chartSpark"></canvas></div>
     </div>
     <div class="card">
