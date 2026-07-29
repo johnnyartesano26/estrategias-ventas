@@ -769,7 +769,7 @@ function renderAllKPIs() {
 function renderComparisonCharts() {
   document.getElementById('customerCharts').innerHTML = `
     <div class="grid grid-2">
-      <div class="card"><h3>Ticket Promedio por Cliente</h3><div class="chart-container tall"><canvas id="chartTicket"></canvas></div></div>
+      <div class="card"><h3>Ticket por Cliente (con Picos min—max)</h3><div class="chart-container tall"><canvas id="chartTicket"></canvas></div></div>
       <div class="card"><h3>Potencial de Crecimiento por Cliente</h3><div class="chart-container tall"><canvas id="chartGrowth"></canvas></div></div>
     </div>
     <div class="grid grid-2">
@@ -786,7 +786,11 @@ function renderComparisonCharts() {
   const colors = customers.map(c => c.segmento==='A'?'#10b981':c.segmento==='B'?'#f59e0b':'#ef4444');
 
   makeBar('chartTicket', names,
-    [{ label:'Ticket Promedio ($)', data:customers.map(c=>c.ticket_promedio), bg:colors}],
+    [
+      { label:'Ticket Máximo ($)', data:customers.map(c=>c.ticket_max||c.ticket_promedio), bg:customers.map(()=>'rgba(56,189,248,0.15)') },
+      { label:'Ticket Promedio ($)', data:customers.map(c=>c.ticket_promedio), bg:colors },
+      { label:'Ticket Mínimo ($)', data:customers.map(c=>c.ticket_min||c.ticket_promedio), bg:customers.map(()=>'rgba(248,113,113,0.25)') },
+    ],
     { yTitle:'$' });
 
   makeBar('chartGrowth', names,
