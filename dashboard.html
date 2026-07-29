@@ -121,17 +121,24 @@
   /* Activacion tracking panel */
   .activacion-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
   .activacion-section h4 { color: var(--success); font-size: 0.8rem; margin-bottom: 2px; }
+  .activacion-section.disabled { opacity: 0.35; pointer-events: none; }
+  .activacion-section.disabled::after { content: " DESACTIVADO — Cliente con Marca Propia"; color: var(--warning); font-size: 0.7rem; display: block; margin-top: 4px; }
   .activacion-table { width: 100%; font-size: 0.78rem; border-collapse: collapse; margin-top: 8px; }
   .activacion-table th { text-align: left; color: var(--text2); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; }
   .activacion-table td { padding: 5px 8px; border-bottom: 1px solid var(--surface2); }
   .activacion-table tr:last-child td { border-bottom: none; }
   .activacion-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; }
   .activacion-table input[type="date"] { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; }
+  .activacion-table td.sub { padding-left: 24px; font-size: 0.72rem; color: var(--text2); }
+  .activacion-table .parent-row { background: rgba(129,140,248,0.06); }
   .activacion-score { font-size: 1.2rem; font-weight: 700; margin-top: 8px; }
   .activacion-score .bar-container { display: inline-block; width: 120px; height: 8px; background: var(--surface2); border-radius: 4px; margin: 0 8px; vertical-align: middle; overflow: hidden; }
   .activacion-score .bar-fill { height: 100%; border-radius: 4px; background: var(--success); transition: width 0.4s; }
   .tag-hecho { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: #166534; color: #34d399; }
   .tag-pendiente { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: #334155; color: #94a3b8; }
+  .marca-propia-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px 12px; background: rgba(251,191,36,0.08); border: 1px dashed var(--warning); border-radius: 6px; }
+  .marca-propia-row label { color: var(--warning); font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .marca-propia-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--warning); }
   .memoria-toggle { font-size: 0.72rem; color: var(--accent); cursor: pointer; margin-top: 6px; display: inline-block; }
   .memoria-toggle:hover { text-decoration: underline; }
 
@@ -369,14 +376,38 @@ function buildEditFieldsForPanel(c) {
 }
 
 // === SISTEMA DE ACTIVACIONES DETALLADAS (PLV, vasos, posavasos, habladores, capacitaciones, eventos) ===
+// PLV es el indicador padre, compuesto por 3 sub-items
+// Capacitaciones: max 2/mes (24/año). Eventos: max 1/bimestre (6/año).
 const ACTIVACIONES_CONFIG = [
-  { key: 'plv', label: 'Material PLV', peso: 15, hint: 'Entrega de material de punto de venta (afiches, displays, banners)' },
-  { key: 'vasos', label: 'Entrega de Vasos', peso: 10, hint: 'Vasos de marca entregados al cliente' },
-  { key: 'posavasos', label: 'Posavasos', peso: 10, hint: 'Posavasos personalizados de la cervecería' },
-  { key: 'habladores', label: 'Habladores', peso: 10, hint: 'Habladores de mesa / table talkers' },
-  { key: 'capacitaciones', label: 'Capacitaciones', peso: 25, hint: 'Capacitación al personal del cliente sobre los productos' },
-  { key: 'eventos', label: 'Eventos', peso: 30, hint: 'Participación en eventos, catas, ferias o activaciones en el punto' },
+  { key: 'plv', label: 'Material PLV', peso: 35, hint: 'Indicador principal de punto de venta', isParent: true,
+    subItems: [
+      { key: 'plv_vasos', label: 'Entrega de Vasos', pesoInterno: 33, hint: 'Vasos de marca en el punto' },
+      { key: 'plv_posavasos', label: 'Entrega de Posavasos', pesoInterno: 33, hint: 'Posavasos personalizados' },
+      { key: 'plv_habladores', label: 'Entrega de Habladores', pesoInterno: 34, hint: 'Habladores de mesa / table talkers' }
+    ]},
+  { key: 'capacitaciones', label: 'Capacitaciones', peso: 35, hint: 'Formación al personal del cliente. Máximo 2 mensuales (24 al año)', maxAnual: 24, type: 'progress' },
+  { key: 'eventos', label: 'Eventos', peso: 30, hint: 'Participación en catas, ferias o activaciones. Máximo 1 bimensual (6 al año)', maxAnual: 6, type: 'progress' },
 ];
+
+function isMarcaPropia(cid) {
+  try {
+    const raw = localStorage.getItem('act_' + cid);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    return data._marcaPropia === true;
+  } catch(e) { return false; }
+}
+
+function toggleMarcaPropia(cid, checked) {
+  const data = loadActivaciones(cid);
+  data._marcaPropia = checked;
+  saveActivaciones(cid, data);
+  const c = getCustomer(cid);
+  if (c) {
+    buildEditFieldsForPanel(c);
+    recalcSingleCustomer(cid);
+  }
+}
 
 function loadActivaciones(cid) {
   try {
@@ -390,35 +421,60 @@ function saveActivaciones(cid, data) {
 }
 
 function calcActivacionScore(cid) {
+  if (isMarcaPropia(cid)) return 0;
   const data = loadActivaciones(cid);
   let score = 0;
   ACTIVACIONES_CONFIG.forEach(a => {
-    if (data[a.key] && data[a.key].hecho) score += a.peso;
+    if (a.type === 'progress') {
+      const val = (data[a.key] && data[a.key].count) || 0;
+      const pct = a.maxAnual ? Math.min(val / a.maxAnual, 1) : 0;
+      score += pct * a.peso;
+    } else if (a.isParent) {
+      // PLV: compuesto por 3 sub-items, cada uno contribuye 1/3 del peso
+      let subPct = 0;
+      if (a.subItems) {
+        a.subItems.forEach(sub => {
+          if (data[sub.key] && data[sub.key].hecho) subPct += sub.pesoInterno / 100;
+        });
+      }
+      score += subPct * a.peso;
+    }
   });
-  return score;
+  return Math.round(score);
 }
 
 function toggleActivacion(cid, key, checked) {
   const data = loadActivaciones(cid);
   const hoy = new Date().toISOString().slice(0, 10);
   if (checked) {
-    data[key] = { hecho: true, fecha: hoy };
+    data[key] = { hecho: true, fecha: hoy, count: (data[key] && data[key].count) || 0 };
   } else {
-    if (data[key] && data[key].hecho) {
-      data[key] = { hecho: false, fecha: null };
-    }
+    if (data[key]) data[key] = { hecho: false, fecha: null, count: (data[key] && data[key].count) || 0 };
   }
   saveActivaciones(cid, data);
-  // Update the score display and recalc KPIs
   updateActivacionScoreDisplay(cid);
   recalcSingleCustomer(cid);
 }
 
 function changeActivacionFecha(cid, key, fecha) {
   const data = loadActivaciones(cid);
-  if (!data[key]) data[key] = { hecho: false, fecha: null };
+  if (!data[key]) data[key] = { hecho: false, fecha: null, count: 0 };
   data[key].fecha = fecha || null;
   saveActivaciones(cid, data);
+}
+
+function changeActivacionCount(cid, key, value) {
+  const data = loadActivaciones(cid);
+  const count = Math.max(0, parseInt(value) || 0);
+  if (!data[key]) data[key] = { hecho: false, fecha: null, count: 0 };
+  data[key].count = count;
+  data[key].hecho = count > 0;
+  if (count > 0 && !data[key].fecha) {
+    data[key].fecha = new Date().toISOString().slice(0, 10);
+  }
+  saveActivaciones(cid, data);
+  updateActivacionScoreDisplay(cid);
+  recalcSingleCustomer(cid);
 }
 
 function updateActivacionScoreDisplay(cid) {
@@ -427,6 +483,7 @@ function updateActivacionScoreDisplay(cid) {
   if (!scoreEl || !barEl) return;
   const score = calcActivacionScore(cid);
   scoreEl.textContent = score + '%';
+  scoreEl.style.color = score >= 60 ? 'var(--success)' : score >= 30 ? 'var(--warning)' : 'var(--danger)';
   barEl.style.width = score + '%';
 }
 
@@ -434,35 +491,87 @@ function buildActivacionHTML(c) {
   const cid = c.id;
   const data = loadActivaciones(cid);
   const score = calcActivacionScore(cid);
+  const disabled = isMarcaPropia(cid);
+  const marca = data._marcaPropia || false;
 
-  let html = `<div class="activacion-section">
-    <h4>Seguimiento de Actividades de Activacion (Bonus en KPIs)</h4>
-    <p style="font-size:0.68rem;color:var(--text2);margin-bottom:6px;">Marca las actividades completadas. El % compuesto suma al puntaje de recompra, upsell y reduce churn.</p>
+  let html = `<div class="activacion-section${disabled ? ' disabled' : ''}">
+    <div class="marca-propia-row">
+      <label>
+        <input type="checkbox" ${marca ? 'checked' : ''} onchange="toggleMarcaPropia('${cid}',this.checked)">
+        Cliente con MARCA PROPIA — NO aplican activaciones (PLV, capacitaciones, eventos)
+      </label>
+    </div>
+    <h4>Seguimiento de Actividades de Activacion</h4>
+    <p style="font-size:0.68rem;color:var(--text2);margin-bottom:6px;">PLV agrupa Vasos + Posavasos + Habladores. Capacitaciones y Eventos usan barras de progreso con max anual.</p>
     <table class="activacion-table">
-      <tr><th>Hecho</th><th>Actividad</th><th>Peso</th><th>Fecha</th><th>Estado</th></tr>`;
+      <tr><th>Hecho</th><th>Actividad</th><th>Peso</th><th>Detalle</th><th>Estado</th></tr>`;
 
   ACTIVACIONES_CONFIG.forEach(a => {
-    const act = data[a.key] || { hecho: false, fecha: null };
-    const checked = act.hecho ? 'checked' : '';
-    const fecha = act.fecha || '';
-    const tag = act.hecho
-      ? `<span class="tag-hecho">HECHO ${act.fecha ? formatFecha(act.fecha) : ''}</span>`
-      : `<span class="tag-pendiente">PENDIENTE</span>`;
+    if (a.isParent) {
+      const act = data[a.key] || { hecho: false, fecha: null };
+      const checked = act.hecho ? 'checked' : '';
+      const fecha = act.fecha || '';
+      const tag = act.hecho
+        ? `<span class="tag-hecho">ENTREGADO ${act.fecha ? formatFecha(act.fecha) : ''}</span>`
+        : `<span class="tag-pendiente">PENDIENTE</span>`;
 
-    html += `<tr>
-      <td><input type="checkbox" ${checked} onchange="toggleActivacion('${cid}','${a.key}',this.checked)"></td>
-      <td><strong>${a.label}</strong><br><span style="font-size:0.62rem;color:var(--text2);">${a.hint}</span></td>
-      <td style="color:var(--accent);font-weight:600;">${a.peso}%</td>
-      <td><input type="date" value="${fecha}" onchange="changeActivacionFecha('${cid}','${a.key}',this.value)" style="width:130px;"></td>
-      <td>${tag}</td>
-    </tr>`;
+      html += `<tr class="parent-row">
+        <td><input type="checkbox" ${checked} onchange="toggleActivacion('${cid}','${a.key}',this.checked)"></td>
+        <td><strong>${a.label}</strong><br><span style="font-size:0.62rem;color:var(--text2);">${a.hint}</span></td>
+        <td style="color:var(--accent);font-weight:600;">${a.peso}%</td>
+        <td><input type="date" value="${fecha}" onchange="changeActivacionFecha('${cid}','${a.key}',this.value)" style="width:120px;"></td>
+        <td>${tag}</td>
+      </tr>`;
+
+      if (a.subItems) {
+        a.subItems.forEach(sub => {
+          const subAct = data[sub.key] || { hecho: false, fecha: null };
+          const subChecked = subAct.hecho ? 'checked' : '';
+          const subFecha = subAct.fecha || '';
+          const subTag = subAct.hecho
+            ? `<span class="tag-hecho">HECHO</span>`
+            : `<span class="tag-pendiente">PENDIENTE</span>`;
+
+          html += `<tr>
+            <td><input type="checkbox" ${subChecked} onchange="toggleActivacion('${cid}','${sub.key}',this.checked)"></td>
+            <td class="sub">↳ ${sub.label}<br><span style="font-size:0.6rem;color:var(--text2);">${sub.hint}</span></td>
+            <td style="color:var(--text2);font-size:0.72rem;">${sub.pesoInterno}% del PLV</td>
+            <td><input type="date" value="${subFecha}" onchange="changeActivacionFecha('${cid}','${sub.key}',this.value)" style="width:120px;"></td>
+            <td>${subTag}</td>
+          </tr>`;
+        });
+      }
+    } else if (a.type === 'progress') {
+      const act = data[a.key] || { count: 0, fecha: null };
+      const count = act.count || 0;
+      const max = a.maxAnual || 1;
+      const pct = Math.round(count / max * 100);
+      const tag = count > 0
+        ? `<span class="tag-hecho">${count}/${max} (${pct}%)</span>`
+        : `<span class="tag-pendiente">0/${max}</span>`;
+
+      html += `<tr>
+        <td>—</td>
+        <td><strong>${a.label}</strong><br><span style="font-size:0.62rem;color:var(--text2);">${a.hint}</span></td>
+        <td style="color:var(--accent);font-weight:600;">${a.peso}%</td>
+        <td>
+          <input type="number" value="${count}" min="0" max="${max}" onchange="changeActivacionCount('${cid}','${a.key}',this.value)" style="width:55px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px;font-size:0.8rem;text-align:center;">
+          <span style="font-size:0.65rem;color:var(--text2);margin-left:4px;">/ ${max}</span>
+          <div style="width:100px;height:5px;background:var(--surface2);border-radius:3px;margin-top:3px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:${pct>=60?'var(--success)':pct>=30?'var(--warning)':'var(--danger)'};border-radius:3px;transition:width 0.4s;"></div>
+          </div>
+        </td>
+        <td>${tag}</td>
+      </tr>`;
+    }
   });
 
   html += `</table>
     <div class="activacion-score" style="margin-top:10px;">
-      Puntaje de Activacion: <span id="activacion_score_${cid}" style="color:${score >= 60 ? 'var(--success)' : score >= 30 ? 'var(--warning)' : 'var(--danger)'};">${score}%</span>
+      Puntaje de Activacion: <span id="activacion_score_${cid}">${score}%</span>
       <span class="bar-container"><span id="activacion_bar_${cid}" class="bar-fill" style="width:${score}%;"></span></span>
-      <span style="font-size:0.65rem;color:var(--text2);">(${score}/100 → bonus en recompra +${(score*0.2).toFixed(0)}%, upsell +${(score*0.25).toFixed(0)}%)</span>
+      <span style="font-size:0.65rem;color:var(--text2);">(${score}/100 → bonus en KPIs)</span>
+      ${disabled ? '<br><span style="color:var(--warning);font-size:0.7rem;">Desactivado por Marca Propia — puntaje = 0%</span>' : ''}
     </div>
     <button onclick="exportActivaciones('${cid}')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.7rem;margin-top:6px;">📥 Exportar Memoria (JSON)</button>
   </div>`;
@@ -476,15 +585,41 @@ function exportActivaciones(cid) {
   const memoria = {
     cliente: c ? c.nombre : cid,
     id: cid,
+    marca_propia: data._marcaPropia || false,
     exportado: new Date().toISOString(),
     puntaje_total: calcActivacionScore(cid) + '%',
-    actividades: ACTIVACIONES_CONFIG.map(a => ({
-      actividad: a.label,
-      peso: a.peso + '%',
-      hecho: (data[a.key] && data[a.key].hecho) || false,
-      fecha: (data[a.key] && data[a.key].fecha) || null
-    }))
+    actividades: []
   };
+  ACTIVACIONES_CONFIG.forEach(a => {
+    if (a.isParent) {
+      const act = data[a.key] || {};
+      memoria.actividades.push({
+        actividad: a.label,
+        peso: a.peso + '%',
+        hecho: act.hecho || false,
+        fecha: act.fecha || null
+      });
+      if (a.subItems) {
+        a.subItems.forEach(sub => {
+          const subAct = data[sub.key] || {};
+          memoria.actividades.push({
+            actividad: '  └ ' + sub.label,
+            peso: sub.pesoInterno + '% del PLV',
+            hecho: subAct.hecho || false,
+            fecha: subAct.fecha || null
+          });
+        });
+      }
+    } else if (a.type === 'progress') {
+      const act = data[a.key] || {};
+      memoria.actividades.push({
+        actividad: a.label,
+        peso: a.peso + '%',
+        cantidad: (act.count || 0) + '/' + (a.maxAnual || 0),
+        fecha: act.fecha || null
+      });
+    }
+  });
   const blob = new Blob([JSON.stringify(memoria, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -830,6 +965,7 @@ function renderCustomerDetail(c) {
 // === FUNCIONES PREDICTIVAS (con documentacion de pesos y usando getVal para overrides) ===
 // Blended activation score: 50% del tracking detallado (PLV, vasos, etc) + 50% de tasa tradicional
 function getActivacionRate(c) {
+  if (isMarcaPropia(c.id)) return 0;
   const detalleScore = calcActivacionScore(c.id) / 100;
   const actEnviadas = getVal(c, 'propuestas_de_activacion.enviadas_12m');
   const actAceptadas = getVal(c, 'propuestas_de_activacion.aceptadas');
