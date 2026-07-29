@@ -711,6 +711,14 @@ function init() {
     opt.textContent = c.id + ' — ' + c.nombre;
     sel.appendChild(opt);
   });
+  // Restaurar último cliente seleccionado
+  const savedId = localStorage.getItem('selectedCustomer');
+  if (savedId && customers.find(c => c.id === savedId)) {
+    sel.value = savedId;
+  }
+  sel.addEventListener('change', () => {
+    localStorage.setItem('selectedCustomer', sel.value);
+  });
   renderCustomer();
 }
 
