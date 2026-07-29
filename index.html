@@ -121,7 +121,10 @@
   /* Activacion tracking panel */
   .activacion-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
   .activacion-section h4 { color: var(--success); font-size: 0.8rem; margin-bottom: 2px; }
-  .activacion-section.disabled { opacity: 0.35; pointer-events: none; }
+  .activacion-section.disabled { opacity: 0.35; }
+  .activacion-section.disabled .activacion-table,
+  .activacion-section.disabled .activacion-score,
+  .activacion-section.disabled button { pointer-events: none; }
   .activacion-section.disabled::after { content: " DESACTIVADO — Cliente con Marca Propia"; color: var(--warning); font-size: 0.7rem; display: block; margin-top: 4px; }
   .activacion-table { width: 100%; font-size: 0.78rem; border-collapse: collapse; margin-top: 8px; }
   .activacion-table th { text-align: left; color: var(--text2); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; }
