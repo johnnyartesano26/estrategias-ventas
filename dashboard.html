@@ -118,6 +118,23 @@
   .delta { font-size: 0.7rem; }
   .delta.pos { color: var(--success); } .delta.neg { color: var(--danger); } .delta.neu { color: var(--text2); }
 
+  /* Activacion tracking panel */
+  .activacion-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .activacion-section h4 { color: var(--success); font-size: 0.8rem; margin-bottom: 2px; }
+  .activacion-table { width: 100%; font-size: 0.78rem; border-collapse: collapse; margin-top: 8px; }
+  .activacion-table th { text-align: left; color: var(--text2); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; }
+  .activacion-table td { padding: 5px 8px; border-bottom: 1px solid var(--surface2); }
+  .activacion-table tr:last-child td { border-bottom: none; }
+  .activacion-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; }
+  .activacion-table input[type="date"] { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; }
+  .activacion-score { font-size: 1.2rem; font-weight: 700; margin-top: 8px; }
+  .activacion-score .bar-container { display: inline-block; width: 120px; height: 8px; background: var(--surface2); border-radius: 4px; margin: 0 8px; vertical-align: middle; overflow: hidden; }
+  .activacion-score .bar-fill { height: 100%; border-radius: 4px; background: var(--success); transition: width 0.4s; }
+  .tag-hecho { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: #166534; color: #34d399; }
+  .tag-pendiente { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: #334155; color: #94a3b8; }
+  .memoria-toggle { font-size: 0.72rem; color: var(--accent); cursor: pointer; margin-top: 6px; display: inline-block; }
+  .memoria-toggle:hover { text-decoration: underline; }
+
   @media (max-width: 900px) {
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
@@ -296,6 +313,8 @@ function buildEditFields(c) {
     if ((i+1) % 4 === 0 && i < fields.length - 1) html += '</div><div class="edit-row">';
   });
   html += '</div>';
+  // Add activaciones detalladas section
+  html += buildActivacionHTML(c);
   html += `<div class="edit-row" style="margin-top:8px;">
     <button onclick="recalcSingleCustomer('${c.id}')" style="background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600;">🔄 Recalcular KPIs</button>
     <button onclick="resetOverrides('${c.id}')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">↩ Restaurar valores originales</button>
@@ -334,6 +353,7 @@ function recalcSingleCustomer(cid) {
 
 function resetOverrides(cid) {
   delete customerOverrides[cid];
+  localStorage.removeItem('act_' + cid);
   currentKpiCache = {};
   const c = getCustomer(cid);
   if (!c) return;
@@ -346,6 +366,130 @@ function resetOverrides(cid) {
 function buildEditFieldsForPanel(c) {
   const panel = document.getElementById('editFields');
   if (panel) panel.innerHTML = buildEditFields(c);
+}
+
+// === SISTEMA DE ACTIVACIONES DETALLADAS (PLV, vasos, posavasos, habladores, capacitaciones, eventos) ===
+const ACTIVACIONES_CONFIG = [
+  { key: 'plv', label: 'Material PLV', peso: 15, hint: 'Entrega de material de punto de venta (afiches, displays, banners)' },
+  { key: 'vasos', label: 'Entrega de Vasos', peso: 10, hint: 'Vasos de marca entregados al cliente' },
+  { key: 'posavasos', label: 'Posavasos', peso: 10, hint: 'Posavasos personalizados de la cervecería' },
+  { key: 'habladores', label: 'Habladores', peso: 10, hint: 'Habladores de mesa / table talkers' },
+  { key: 'capacitaciones', label: 'Capacitaciones', peso: 25, hint: 'Capacitación al personal del cliente sobre los productos' },
+  { key: 'eventos', label: 'Eventos', peso: 30, hint: 'Participación en eventos, catas, ferias o activaciones en el punto' },
+];
+
+function loadActivaciones(cid) {
+  try {
+    const raw = localStorage.getItem('act_' + cid);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveActivaciones(cid, data) {
+  localStorage.setItem('act_' + cid, JSON.stringify(data));
+}
+
+function calcActivacionScore(cid) {
+  const data = loadActivaciones(cid);
+  let score = 0;
+  ACTIVACIONES_CONFIG.forEach(a => {
+    if (data[a.key] && data[a.key].hecho) score += a.peso;
+  });
+  return score;
+}
+
+function toggleActivacion(cid, key, checked) {
+  const data = loadActivaciones(cid);
+  const hoy = new Date().toISOString().slice(0, 10);
+  if (checked) {
+    data[key] = { hecho: true, fecha: hoy };
+  } else {
+    if (data[key] && data[key].hecho) {
+      data[key] = { hecho: false, fecha: null };
+    }
+  }
+  saveActivaciones(cid, data);
+  // Update the score display and recalc KPIs
+  updateActivacionScoreDisplay(cid);
+  recalcSingleCustomer(cid);
+}
+
+function changeActivacionFecha(cid, key, fecha) {
+  const data = loadActivaciones(cid);
+  if (!data[key]) data[key] = { hecho: false, fecha: null };
+  data[key].fecha = fecha || null;
+  saveActivaciones(cid, data);
+}
+
+function updateActivacionScoreDisplay(cid) {
+  const scoreEl = document.getElementById('activacion_score_' + cid);
+  const barEl = document.getElementById('activacion_bar_' + cid);
+  if (!scoreEl || !barEl) return;
+  const score = calcActivacionScore(cid);
+  scoreEl.textContent = score + '%';
+  barEl.style.width = score + '%';
+}
+
+function buildActivacionHTML(c) {
+  const cid = c.id;
+  const data = loadActivaciones(cid);
+  const score = calcActivacionScore(cid);
+
+  let html = `<div class="activacion-section">
+    <h4>Seguimiento de Actividades de Activacion (Bonus en KPIs)</h4>
+    <p style="font-size:0.68rem;color:var(--text2);margin-bottom:6px;">Marca las actividades completadas. El % compuesto suma al puntaje de recompra, upsell y reduce churn.</p>
+    <table class="activacion-table">
+      <tr><th>Hecho</th><th>Actividad</th><th>Peso</th><th>Fecha</th><th>Estado</th></tr>`;
+
+  ACTIVACIONES_CONFIG.forEach(a => {
+    const act = data[a.key] || { hecho: false, fecha: null };
+    const checked = act.hecho ? 'checked' : '';
+    const fecha = act.fecha || '';
+    const tag = act.hecho
+      ? `<span class="tag-hecho">HECHO ${act.fecha ? formatFecha(act.fecha) : ''}</span>`
+      : `<span class="tag-pendiente">PENDIENTE</span>`;
+
+    html += `<tr>
+      <td><input type="checkbox" ${checked} onchange="toggleActivacion('${cid}','${a.key}',this.checked)"></td>
+      <td><strong>${a.label}</strong><br><span style="font-size:0.62rem;color:var(--text2);">${a.hint}</span></td>
+      <td style="color:var(--accent);font-weight:600;">${a.peso}%</td>
+      <td><input type="date" value="${fecha}" onchange="changeActivacionFecha('${cid}','${a.key}',this.value)" style="width:130px;"></td>
+      <td>${tag}</td>
+    </tr>`;
+  });
+
+  html += `</table>
+    <div class="activacion-score" style="margin-top:10px;">
+      Puntaje de Activacion: <span id="activacion_score_${cid}" style="color:${score >= 60 ? 'var(--success)' : score >= 30 ? 'var(--warning)' : 'var(--danger)'};">${score}%</span>
+      <span class="bar-container"><span id="activacion_bar_${cid}" class="bar-fill" style="width:${score}%;"></span></span>
+      <span style="font-size:0.65rem;color:var(--text2);">(${score}/100 → bonus en recompra +${(score*0.2).toFixed(0)}%, upsell +${(score*0.25).toFixed(0)}%)</span>
+    </div>
+    <button onclick="exportActivaciones('${cid}')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.7rem;margin-top:6px;">📥 Exportar Memoria (JSON)</button>
+  </div>`;
+
+  return html;
+}
+
+function exportActivaciones(cid) {
+  const data = loadActivaciones(cid);
+  const c = getCustomer(cid);
+  const memoria = {
+    cliente: c ? c.nombre : cid,
+    id: cid,
+    exportado: new Date().toISOString(),
+    puntaje_total: calcActivacionScore(cid) + '%',
+    actividades: ACTIVACIONES_CONFIG.map(a => ({
+      actividad: a.label,
+      peso: a.peso + '%',
+      hecho: (data[a.key] && data[a.key].hecho) || false,
+      fecha: (data[a.key] && data[a.key].fecha) || null
+    }))
+  };
+  const blob = new Blob([JSON.stringify(memoria, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `memoria_activaciones_${cid}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 const EMBEDDED_DATA = {"customers":[{"id":"CLI-001","nombre":"Juan Carlos Orrego Zapata","tipo_negocio":"Distribuidor/Bar","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.78},"clima":{"sensibilidad":"baja","clima_favorable":"templado/seco","afectacion_lluvia":0.12,"afectacion_calor":0.09},"calidad_del_servicio":{"score":8.4,"ultima_evaluacion":"2026-07-28","quejas_ultimo_trimestre":1,"nps":70},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":10,"tipo_negocio":"Distribuidor/Bar"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":5.2,"regimen":"general","ultimo_incremento_iva_impacto":0.12},"calidad_del_producto":{"score":8.0,"devoluciones_pct":0.014,"reclamos_calidad_12m":1,"producto_top":"Irish Red","variedad":1,"productos":{"Irish Red":428.7},"formato":"litro"},"tiempo_de_entrega":{"promedio_dias":1.7,"tolerancia_maxima_dias":2.0,"entregas_a_tiempo_pct":0.88,"score_satisfaccion":7.2},"propuestas_de_activacion":{"enviadas_12m":18,"aceptadas":5,"tasa_conversion":0.28,"ultima_aceptada":"2026-07-28","tipo_preferido":"descuento_por_volumen"},"propuestas_activacion_producto":{"enviadas_12m":9,"aceptadas":4,"tasa_conversion":0.44,"categoria_interes":"linea_economica"},"participacion_en_eventos":{"invitaciones_12m":8,"asistencias":6,"ultimo_evento":"2026-07-20","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":1350845.78,"frecuencia_de_compra":{"promedio_mensual":5.74,"tendencia":"creciente","ultima_compra":"2026-07-28","total_ordenes":9},"valor_de_vida":12157612.0,"total_unidades":428.7,"segmento":"A","potencial_de_crecimiento":4.1,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":11.1,"responsable":"Johnny"},"historial_compras":[{"fecha":"2026-06-26","ticket":1618800.0,"productos":{"Irish Red":{"cantidad":57.1,"formato":"litro"}},"domicilio":20000.0},{"fecha":"2026-07-02","ticket":1635400.0,"productos":{"Irish Red":{"cantidad":57.55,"formato":"litro"}},"domicilio":24000.0},{"fecha":"2026-07-09","ticket":1618800.0,"productos":{"Irish Red":{"cantidad":57.1,"formato":"litro"}},"domicilio":20000.0},{"fecha":"2026-07-15","ticket":1618800.0,"productos":{"Irish Red":{"cantidad":57.1,"formato":"litro"}},"domicilio":20000.0},{"fecha":"2026-07-28","ticket":1618800.0,"productos":{"Irish Red":{"cantidad":57.1,"formato":"litro"}},"domicilio":20000.0}],"ticket_min":799412.0,"ticket_max":1635400.0,"ticket_tendencia_pct":102.5},{"id":"CLI-002","nombre":"INVERSIONES LATINERIA S.A.S","tipo_negocio":"Empresa","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.6},"clima":{"sensibilidad":"baja","clima_favorable":"templado/seco","afectacion_lluvia":0.03,"afectacion_calor":0.03},"calidad_del_servicio":{"score":8.6,"ultima_evaluacion":"2026-06-26","quejas_ultimo_trimestre":2,"nps":77},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"A","distancia_centro_dist_km":9,"tipo_negocio":"Empresa"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":5.4,"regimen":"general","ultimo_incremento_iva_impacto":0.094},"calidad_del_producto":{"score":8.8,"devoluciones_pct":0.018,"reclamos_calidad_12m":0,"producto_top":"Golden Ale","variedad":4,"productos":{"Golden Ale":58.5,"IPA Vagabundo":58.5,"Irish Red":58.5,"Stout":58.5},"formato":"litro"},"tiempo_de_entrega":{"promedio_dias":1.4,"tolerancia_maxima_dias":2.0,"entregas_a_tiempo_pct":0.94,"score_satisfaccion":7.5},"propuestas_de_activacion":{"enviadas_12m":2,"aceptadas":0,"tasa_conversion":0.0,"ultima_aceptada":null,"tipo_preferido":"envio_gratis"},"propuestas_activacion_producto":{"enviadas_12m":1,"aceptadas":0,"tasa_conversion":0.0,"categoria_interes":"linea_premium"},"participacion_en_eventos":{"invitaciones_12m":3,"asistencias":1,"ultimo_evento":"2026-06-15","tipo_evento_preferido":"feria_comercial"},"ticket_promedio":6557600.0,"frecuencia_de_compra":{"promedio_mensual":0.8,"tendencia":"nuevo","ultima_compra":"2026-06-26","total_ordenes":1},"valor_de_vida":6557600.0,"total_unidades":234.2,"segmento":"A","potencial_de_crecimiento":6.0,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":0.0,"responsable":"Johnny"},"historial_compras":[{"fecha":"2026-06-26","ticket":6557600.0,"productos":{"Golden Ale":{"cantidad":58.55,"formato":"litro"},"IPA Vagabundo":{"cantidad":58.55,"formato":"litro"},"Irish Red":{"cantidad":58.55,"formato":"litro"},"Stout":{"cantidad":58.55,"formato":"litro"}},"domicilio":0}],"ticket_min":6557600.0,"ticket_max":6557600.0,"ticket_tendencia_pct":0},{"id":"CLI-003","nombre":"Johnny Anderle Guerrero Bucheli","tipo_negocio":"Interno/Pruebas","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.66},"clima":{"sensibilidad":"baja","clima_favorable":"templado/seco","afectacion_lluvia":0.07,"afectacion_calor":0.03},"calidad_del_servicio":{"score":9.1,"ultima_evaluacion":"2026-07-21","quejas_ultimo_trimestre":0,"nps":81},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":28,"tipo_negocio":"Interno/Pruebas"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":4.3,"regimen":"general","ultimo_incremento_iva_impacto":0.078},"calidad_del_producto":{"score":9.6,"devoluciones_pct":0.013,"reclamos_calidad_12m":1,"producto_top":"Golden Ale","variedad":4,"productos":{"Golden Ale":45.1,"IPA Vagabundo":18.6,"Irish Red":18.6,"APA Cienfuegos":1.0},"formato":"litro"},"tiempo_de_entrega":{"promedio_dias":2.6,"tolerancia_maxima_dias":4.0,"entregas_a_tiempo_pct":0.85,"score_satisfaccion":6.7},"propuestas_de_activacion":{"enviadas_12m":20,"aceptadas":6,"tasa_conversion":0.3,"ultima_aceptada":"2026-07-21","tipo_preferido":"descuento_por_volumen"},"propuestas_activacion_producto":{"enviadas_12m":10,"aceptadas":5,"tasa_conversion":0.5,"categoria_interes":"linea_premium"},"participacion_en_eventos":{"invitaciones_12m":8,"asistencias":6,"ultimo_evento":"2026-07-20","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":219268.1,"frecuencia_de_compra":{"promedio_mensual":7.14,"tendencia":"creciente","ultima_compra":"2026-07-21","total_ordenes":10},"valor_de_vida":2192681.0,"total_unidades":83.2,"segmento":"A","potencial_de_crecimiento":8.6,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":20.0,"responsable":"Johnny"},"historial_compras":[{"fecha":"2026-06-09","ticket":10012.0,"productos":{"Golden Ale":{"cantidad":1.0,"formato":"botella"}},"domicilio":12.0},{"fecha":"2026-06-09","ticket":529415.0,"productos":{"Golden Ale":{"cantidad":1.0,"formato":"botella"},"Irish Red":{"cantidad":18.55,"formato":"litro"}},"domicilio":15.0},{"fecha":"2026-06-09","ticket":519415.0,"productos":{"Golden Ale":{"cantidad":18.55,"formato":"litro"}},"domicilio":15.0},{"fecha":"2026-07-21","ticket":10000.0,"productos":{"Golden Ale":{"cantidad":1.0,"formato":"botella"}},"domicilio":0},{"fecha":"2026-07-21","ticket":10000.0,"productos":{"Golden Ale":{"cantidad":1.0,"formato":"botella"}},"domicilio":0}],"ticket_min":10000.0,"ticket_max":544400.0,"ticket_tendencia_pct":-98.1},{"id":"CLI-004","nombre":"CECILIA ALICIA BRAVO DE NOHAVA","tipo_negocio":"Particular/Alto Consumo","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.76},"clima":{"sensibilidad":"baja","clima_favorable":"templado/seco","afectacion_lluvia":0.08,"afectacion_calor":0.15},"calidad_del_servicio":{"score":6.8,"ultima_evaluacion":"2026-07-09","quejas_ultimo_trimestre":4,"nps":69},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":9,"tipo_negocio":"Particular/Alto Consumo"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":6.7,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.125},"calidad_del_producto":{"score":7.7,"devoluciones_pct":0.016,"reclamos_calidad_12m":3,"producto_top":"IPA Vagabundo","variedad":2,"productos":{"IPA Vagabundo":28.0,"Golden Ale":24.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":1.6,"tolerancia_maxima_dias":2.0,"entregas_a_tiempo_pct":0.92,"score_satisfaccion":7.2},"propuestas_de_activacion":{"enviadas_12m":6,"aceptadas":1,"tasa_conversion":0.17,"ultima_aceptada":"2026-07-09","tipo_preferido":"descuento_por_volumen"},"propuestas_activacion_producto":{"enviadas_12m":3,"aceptadas":1,"tasa_conversion":0.33,"categoria_interes":"linea_media"},"participacion_en_eventos":{"invitaciones_12m":5,"asistencias":3,"ultimo_evento":"2026-06-15","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":255333.33,"frecuencia_de_compra":{"promedio_mensual":3.46,"tendencia":"estable","ultima_compra":"2026-07-09","total_ordenes":3},"valor_de_vida":766000.0,"total_unidades":52.0,"segmento":"B","potencial_de_crecimiento":4.5,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":33.3,"responsable":"Otro"},"historial_compras":[{"fecha":"2026-06-13","ticket":150000.0,"productos":{"Golden Ale":{"cantidad":6.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":8.0,"formato":"botella"}},"domicilio":10000.0},{"fecha":"2026-06-19","ticket":150000.0,"productos":{"Golden Ale":{"cantidad":6.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":8.0,"formato":"botella"}},"domicilio":10000.0},{"fecha":"2026-07-09","ticket":466000.0,"productos":{"Golden Ale":{"cantidad":12.0,"formato":"litro"},"IPA Vagabundo":{"cantidad":12.0,"formato":"botella"}},"domicilio":10000.0}],"ticket_min":150000.0,"ticket_max":466000.0,"ticket_tendencia_pct":210.7},{"id":"CLI-005","nombre":"Leonardo Gaitan Zuluaga","tipo_negocio":"Bar/Restaurante","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.79},"clima":{"sensibilidad":"media","clima_favorable":"templado/seco","afectacion_lluvia":0.18,"afectacion_calor":0.12},"calidad_del_servicio":{"score":8.1,"ultima_evaluacion":"2026-07-27","quejas_ultimo_trimestre":1,"nps":60},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":25,"tipo_negocio":"Bar/Restaurante"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":5.6,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.095},"calidad_del_producto":{"score":8.9,"devoluciones_pct":0.017,"reclamos_calidad_12m":1,"producto_top":"Golden Ale","variedad":4,"productos":{"Golden Ale":31.0,"IPA Vagabundo":27.0,"Irish Red":10.0,"APA Cienfuegos":4.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":2.1,"tolerancia_maxima_dias":3.0,"entregas_a_tiempo_pct":0.91,"score_satisfaccion":7.4},"propuestas_de_activacion":{"enviadas_12m":6,"aceptadas":1,"tasa_conversion":0.17,"ultima_aceptada":"2026-07-27","tipo_preferido":"descuento_por_volumen"},"propuestas_activacion_producto":{"enviadas_12m":3,"aceptadas":1,"tasa_conversion":0.33,"categoria_interes":"linea_premium"},"participacion_en_eventos":{"invitaciones_12m":5,"asistencias":3,"ultimo_evento":"2026-07-20","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":246670.67,"frecuencia_de_compra":{"promedio_mensual":3.6,"tendencia":"estable","ultima_compra":"2026-07-27","total_ordenes":3},"valor_de_vida":740012.0,"total_unidades":72.0,"segmento":"B","potencial_de_crecimiento":7.6,"pago":{"forma":"credito","medio":"Tranferencia débito","credito_pct":100.0,"responsable":"Mauricio"},"historial_compras":[{"fecha":"2026-07-02","ticket":340012.0,"productos":{"Golden Ale":{"cantidad":13.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":13.0,"formato":"botella"},"APA Cienfuegos":{"cantidad":4.0,"formato":"botella"},"Irish Red":{"cantidad":4.0,"formato":"botella"}},"domicilio":12.0},{"fecha":"2026-07-21","ticket":250000.0,"productos":{"Golden Ale":{"cantidad":18.0,"formato":"botella"},"Irish Red":{"cantidad":6.0,"formato":"botella"}},"domicilio":10000.0},{"fecha":"2026-07-27","ticket":150000.0,"productos":{"IPA Vagabundo":{"cantidad":14.0,"formato":"botella"}},"domicilio":10000.0}],"ticket_min":150000.0,"ticket_max":340012.0,"ticket_tendencia_pct":-55.9},{"id":"CLI-006","nombre":"CHARCUTERIA CERDEÑA","tipo_negocio":"Gastronomico","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.83},"clima":{"sensibilidad":"alta","clima_favorable":"templado/seco","afectacion_lluvia":0.47,"afectacion_calor":0.28},"calidad_del_servicio":{"score":8.6,"ultima_evaluacion":"2026-07-10","quejas_ultimo_trimestre":3,"nps":76},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"A","distancia_centro_dist_km":3,"tipo_negocio":"Gastronomico"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":4.8,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.08},"calidad_del_producto":{"score":9.4,"devoluciones_pct":0.005,"reclamos_calidad_12m":0,"producto_top":"IPA Vagabundo","variedad":4,"productos":{"IPA Vagabundo":36.0,"Golden Ale":12.0,"Stout":12.0,"Irish Red":6.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":1.5,"tolerancia_maxima_dias":2.0,"entregas_a_tiempo_pct":0.89,"score_satisfaccion":7.8},"propuestas_de_activacion":{"enviadas_12m":2,"aceptadas":0,"tasa_conversion":0.0,"ultima_aceptada":null,"tipo_preferido":"envio_gratis"},"propuestas_activacion_producto":{"enviadas_12m":1,"aceptadas":0,"tasa_conversion":0.0,"categoria_interes":"linea_premium"},"participacion_en_eventos":{"invitaciones_12m":5,"asistencias":3,"ultimo_evento":"2026-06-15","tipo_evento_preferido":"cata_cerveza"},"ticket_promedio":660000.0,"frecuencia_de_compra":{"promedio_mensual":0.8,"tendencia":"nuevo","ultima_compra":"2026-07-10","total_ordenes":1},"valor_de_vida":660000.0,"total_unidades":66.0,"segmento":"B","potencial_de_crecimiento":8.5,"pago":{"forma":"credito","medio":"Tranferencia débito","credito_pct":100.0,"responsable":"Mauricio"},"historial_compras":[{"fecha":"2026-07-10","ticket":660000.0,"productos":{"Golden Ale":{"cantidad":12.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":36.0,"formato":"botella"},"Irish Red":{"cantidad":6.0,"formato":"botella"},"Stout":{"cantidad":12.0,"formato":"botella"}},"domicilio":0}],"ticket_min":660000.0,"ticket_max":660000.0,"ticket_tendencia_pct":0},{"id":"CLI-007","nombre":"DANIEL SCHMUTTE","tipo_negocio":"Bar/Restaurante","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.57},"clima":{"sensibilidad":"media","clima_favorable":"templado/seco","afectacion_lluvia":0.15,"afectacion_calor":0.21},"calidad_del_servicio":{"score":7.9,"ultima_evaluacion":"2026-07-24","quejas_ultimo_trimestre":1,"nps":75},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":22,"tipo_negocio":"Bar/Restaurante"},"tensiones_tributarias":{"sensibilidad":"media","score_afectacion":6.7,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.135},"calidad_del_producto":{"score":8.0,"devoluciones_pct":0.024,"reclamos_calidad_12m":1,"producto_top":"IPA Vagabundo","variedad":3,"productos":{"IPA Vagabundo":24.0,"Stout":24.0,"Irish Red":12.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":2.4,"tolerancia_maxima_dias":3.0,"entregas_a_tiempo_pct":0.87,"score_satisfaccion":6.7},"propuestas_de_activacion":{"enviadas_12m":2,"aceptadas":0,"tasa_conversion":0.0,"ultima_aceptada":null,"tipo_preferido":"envio_gratis"},"propuestas_activacion_producto":{"enviadas_12m":1,"aceptadas":0,"tasa_conversion":0.0,"categoria_interes":"linea_media"},"participacion_en_eventos":{"invitaciones_12m":3,"asistencias":1,"ultimo_evento":"2026-07-20","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":614000.0,"frecuencia_de_compra":{"promedio_mensual":0.8,"tendencia":"nuevo","ultima_compra":"2026-07-24","total_ordenes":1},"valor_de_vida":614000.0,"total_unidades":60.0,"segmento":"B","potencial_de_crecimiento":5.2,"pago":{"forma":"credito","medio":"Tranferencia débito","credito_pct":100.0,"responsable":"Mauricio"},"historial_compras":[{"fecha":"2026-07-24","ticket":614000.0,"productos":{"IPA Vagabundo":{"cantidad":24.0,"formato":"botella"},"Irish Red":{"cantidad":12.0,"formato":"botella"},"Stout":{"cantidad":24.0,"formato":"botella"}},"domicilio":14000.0}],"ticket_min":614000.0,"ticket_max":614000.0,"ticket_tendencia_pct":0},{"id":"CLI-008","nombre":"METAMORFOSIS MEDELLÍN S.A.S","tipo_negocio":"Eventos","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.77},"clima":{"sensibilidad":"alta","clima_favorable":"templado/seco","afectacion_lluvia":0.46,"afectacion_calor":0.2},"calidad_del_servicio":{"score":8.0,"ultima_evaluacion":"2026-06-13","quejas_ultimo_trimestre":1,"nps":75},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":16,"tipo_negocio":"Eventos"},"tensiones_tributarias":{"sensibilidad":"alta","score_afectacion":7.4,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.148},"calidad_del_producto":{"score":8.5,"devoluciones_pct":0.022,"reclamos_calidad_12m":2,"producto_top":"Stout","variedad":1,"productos":{"Stout":48.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":1.6,"tolerancia_maxima_dias":3.0,"entregas_a_tiempo_pct":0.91,"score_satisfaccion":7.8},"propuestas_de_activacion":{"enviadas_12m":2,"aceptadas":0,"tasa_conversion":0.0,"ultima_aceptada":null,"tipo_preferido":"precio_especial"},"propuestas_activacion_producto":{"enviadas_12m":1,"aceptadas":0,"tasa_conversion":0.0,"categoria_interes":"linea_economica"},"participacion_en_eventos":{"invitaciones_12m":5,"asistencias":3,"ultimo_evento":"2026-06-15","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":495000.0,"frecuencia_de_compra":{"promedio_mensual":0.8,"tendencia":"nuevo","ultima_compra":"2026-06-13","total_ordenes":1},"valor_de_vida":495000.0,"total_unidades":48.0,"segmento":"C","potencial_de_crecimiento":3.1,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":0.0,"responsable":"Johnny"},"historial_compras":[{"fecha":"2026-06-13","ticket":495000.0,"productos":{"Stout":{"cantidad":48.0,"formato":"botella"}},"domicilio":15000.0}],"ticket_min":495000.0,"ticket_max":495000.0,"ticket_tendencia_pct":0},{"id":"CLI-009","nombre":"Astrid Veronica Porras Giraldo","tipo_negocio":"Particular/Alto Consumo","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[7,8],"estacionalidad_index":0.4},"clima":{"sensibilidad":"baja","clima_favorable":"templado/seco","afectacion_lluvia":0.13,"afectacion_calor":0.14},"calidad_del_servicio":{"score":6.5,"ultima_evaluacion":"2026-06-19","quejas_ultimo_trimestre":3,"nps":56},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":36,"tipo_negocio":"Particular/Alto Consumo"},"tensiones_tributarias":{"sensibilidad":"alta","score_afectacion":9.3,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.169},"calidad_del_producto":{"score":9.3,"devoluciones_pct":0.005,"reclamos_calidad_12m":3,"producto_top":"Golden Ale","variedad":5,"productos":{"Golden Ale":10.0,"IPA Vagabundo":10.0,"APA Cienfuegos":10.0,"Irish Red":10.0,"Stout":8.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":3.2,"tolerancia_maxima_dias":5.0,"entregas_a_tiempo_pct":0.86,"score_satisfaccion":6.2},"propuestas_de_activacion":{"enviadas_12m":2,"aceptadas":0,"tasa_conversion":0.0,"ultima_aceptada":null,"tipo_preferido":"envio_gratis"},"propuestas_activacion_producto":{"enviadas_12m":1,"aceptadas":0,"tasa_conversion":0.0,"categoria_interes":"linea_premium"},"participacion_en_eventos":{"invitaciones_12m":3,"asistencias":1,"ultimo_evento":"2026-06-15","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":495000.0,"frecuencia_de_compra":{"promedio_mensual":0.8,"tendencia":"nuevo","ultima_compra":"2026-06-19","total_ordenes":1},"valor_de_vida":495000.0,"total_unidades":48.0,"segmento":"C","potencial_de_crecimiento":7.3,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":0.0,"responsable":"Johnny"},"historial_compras":[{"fecha":"2026-06-19","ticket":495000.0,"productos":{"Golden Ale":{"cantidad":10.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":10.0,"formato":"botella"},"APA Cienfuegos":{"cantidad":10.0,"formato":"botella"},"Irish Red":{"cantidad":10.0,"formato":"botella"},"Stout":{"cantidad":8.0,"formato":"botella"}},"domicilio":15000.0}],"ticket_min":495000.0,"ticket_max":495000.0,"ticket_tendencia_pct":0},{"id":"CLI-010","nombre":"SEVEN MINIMERCADO","tipo_negocio":"Minimercado","epoca_del_ano":{"preferencia":"Q2-Q3","meses_fuertes":[6,7,8],"estacionalidad_index":0.53},"clima":{"sensibilidad":"media","clima_favorable":"templado/seco","afectacion_lluvia":0.15,"afectacion_calor":0.18},"calidad_del_servicio":{"score":7.4,"ultima_evaluacion":"2026-07-24","quejas_ultimo_trimestre":2,"nps":60},"ubicacion":{"region":"Antioquia","ciudad":"Medellin","zona_logistica":"B","distancia_centro_dist_km":22,"tipo_negocio":"Minimercado"},"tensiones_tributarias":{"sensibilidad":"alta","score_afectacion":8.5,"regimen":"simplificado","ultimo_incremento_iva_impacto":0.176},"calidad_del_producto":{"score":8.5,"devoluciones_pct":0.019,"reclamos_calidad_12m":3,"producto_top":"IPA Vagabundo","variedad":5,"productos":{"IPA Vagabundo":16.0,"Golden Ale":10.0,"Irish Red":8.0,"APA Cienfuegos":7.0,"Stout":7.0},"formato":"botella"},"tiempo_de_entrega":{"promedio_dias":2.5,"tolerancia_maxima_dias":3.0,"entregas_a_tiempo_pct":0.87,"score_satisfaccion":6.6},"propuestas_de_activacion":{"enviadas_12m":4,"aceptadas":1,"tasa_conversion":0.25,"ultima_aceptada":"2026-07-24","tipo_preferido":"envio_gratis"},"propuestas_activacion_producto":{"enviadas_12m":2,"aceptadas":1,"tasa_conversion":0.5,"categoria_interes":"linea_premium"},"participacion_en_eventos":{"invitaciones_12m":4,"asistencias":2,"ultimo_evento":"2026-07-20","tipo_evento_preferido":"rueda_negocios"},"ticket_promedio":245005.0,"frecuencia_de_compra":{"promedio_mensual":2.73,"tendencia":"estable","ultima_compra":"2026-07-24","total_ordenes":2},"valor_de_vida":490010.0,"total_unidades":48.0,"segmento":"C","potencial_de_crecimiento":8.1,"pago":{"forma":"contado","medio":"Tranferencia débito","credito_pct":50.0,"responsable":"Otro"},"historial_compras":[{"fecha":"2026-07-02","ticket":240010.0,"productos":{"Golden Ale":{"cantidad":4.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":4.0,"formato":"botella"},"APA Cienfuegos":{"cantidad":4.0,"formato":"botella"},"Irish Red":{"cantidad":8.0,"formato":"botella"},"Stout":{"cantidad":4.0,"formato":"botella"}},"domicilio":10.0},{"fecha":"2026-07-24","ticket":250000.0,"productos":{"Golden Ale":{"cantidad":6.0,"formato":"botella"},"IPA Vagabundo":{"cantidad":12.0,"formato":"botella"},"APA Cienfuegos":{"cantidad":3.0,"formato":"botella"},"Stout":{"cantidad":3.0,"formato":"botella"}},"domicilio":10000.0}],"ticket_min":240010.0,"ticket_max":250000.0,"ticket_tendencia_pct":4.2}]};
@@ -487,10 +631,9 @@ function renderCustomerKPIs(c) {
   const freq = getVal(c, 'frecuencia_de_compra.promedio_mensual');
   const tendencia = getVal(c, 'frecuencia_de_compra.tendencia');
 
-  // Dynamic activation rate
-  const actEnv = getVal(c, 'propuestas_de_activacion.enviadas_12m');
-  const actAcep = getVal(c, 'propuestas_de_activacion.aceptadas');
-  const actRate = actEnv > 0 ? Math.round(actAcep / actEnv * 100) : 0;
+  // Dynamic activation rate (blended: tracking + tradicional)
+  const actRate = Math.round(getActivacionRate(c) * 100);
+  const actDetalle = calcActivacionScore(c.id);
 
   // Sparkline data
   const hist = c.historial_compras || [];
@@ -513,7 +656,7 @@ function renderCustomerKPIs(c) {
       <div class="kpi ${probRecompra>=0.7?'positive':probRecompra>=0.4?'warning':'danger'}">${(probRecompra*100).toFixed(0)}%</div>
       <div class="progress-bar"><div class="progress-fill ${probRecompra>=0.7?'high':probRecompra>=0.4?'med':'low'}" style="width:${probRecompra*100}%"></div></div>
       <div class="kpi-meta">Última compra: <strong>${formatFecha(ultimaFecha)}</strong> (hace ${diasDesdeUltima}d)</div>
-      <div class="kpi-meta">Activaciones: <strong>${actAcep}/${actEnv}</strong> aceptadas (<strong>${actRate}%</strong>)</div>
+      <div class="kpi-meta">Activaciones (blend): <strong>${actRate}%</strong> — Tracking: <strong>${actDetalle}%</strong> (PLV+vasos+capacitaciones)</div>
       <div class="chart-container spark" style="margin-top:6px;"><canvas id="chartSpark"></canvas></div>
     </div>
     <div class="card">
@@ -685,24 +828,28 @@ function renderCustomerDetail(c) {
 }
 
 // === FUNCIONES PREDICTIVAS (con documentacion de pesos y usando getVal para overrides) ===
+// Blended activation score: 50% del tracking detallado (PLV, vasos, etc) + 50% de tasa tradicional
+function getActivacionRate(c) {
+  const detalleScore = calcActivacionScore(c.id) / 100;
+  const actEnviadas = getVal(c, 'propuestas_de_activacion.enviadas_12m');
+  const actAceptadas = getVal(c, 'propuestas_de_activacion.aceptadas');
+  const tradicionalRate = actEnviadas > 0 ? actAceptadas / actEnviadas : 0;
+  return detalleScore * 0.50 + tradicionalRate * 0.50;
+}
+
 function predictRepurchase(c) {
   const freqScore = Math.min(getVal(c, 'frecuencia_de_compra.promedio_mensual') / 7, 1);
   const ultima = getVal(c, 'frecuencia_de_compra.ultima_compra') || c.frecuencia_de_compra.ultima_compra;
   const daysSinceLast = (new Date('2026-07-29') - new Date(ultima)) / (1000*60*60*24);
   const recencyScore = Math.max(0, 1 - daysSinceLast/30);
   const serviceScore = getVal(c, 'calidad_del_servicio.score') / 10;
-  // Tasa de conversion dinamica: aceptadas / enviadas desde overrides o data original
-  const actEnviadas = getVal(c, 'propuestas_de_activacion.enviadas_12m');
-  const actAceptadas = getVal(c, 'propuestas_de_activacion.aceptadas');
-  const activationScore = actEnviadas > 0 ? actAceptadas / actEnviadas : 0;
+  const activationScore = getActivacionRate(c);
   return freqScore*0.30 + recencyScore*0.30 + serviceScore*0.20 + activationScore*0.20;
 }
 
 function predictUpsell(c) {
   const ticketVsSegment = Math.min(getVal(c, 'ticket_promedio') / (getSegmentAverage(getVal(c, 'segmento')||c.segmento).ticket||1), 2) / 2;
-  const actEnv = getVal(c, 'propuestas_de_activacion.enviadas_12m');
-  const actAcep = getVal(c, 'propuestas_de_activacion.aceptadas');
-  const activationScore = actEnv > 0 ? actAcep / actEnv : 0;
+  const activationScore = getActivacionRate(c);
   const prodEnv = getVal(c, 'propuestas_activacion_producto.enviadas_12m');
   const prodAcep = getVal(c, 'propuestas_activacion_producto.aceptadas');
   const productActivation = prodEnv > 0 ? prodAcep / prodEnv : 0;
@@ -720,9 +867,7 @@ function predictChurn(c) {
   const complaintScore = getVal(c, 'calidad_del_servicio.quejas_ultimo_trimestre') / 10;
   const taxSensitivity = getVal(c, 'tensiones_tributarias.score_afectacion') / 10;
   const deliveryScore = 1 - getVal(c, 'tiempo_de_entrega.entregas_a_tiempo_pct');
-  const actEnv = getVal(c, 'propuestas_de_activacion.enviadas_12m');
-  const actAcep = getVal(c, 'propuestas_de_activacion.aceptadas');
-  const activationReject = actEnv > 0 ? 1 - (actAcep / actEnv) : 0.5;
+  const activationReject = 1 - getActivacionRate(c);
   return trendScore*0.30 + complaintScore*0.15 + taxSensitivity*0.20 + deliveryScore*0.15 + activationReject*0.20;
 }
 
@@ -730,9 +875,7 @@ function predictNextTicket(c) {
   const base = getVal(c, 'ticket_promedio') || c.ticket_promedio;
   const growthFactor = ((getVal(c, 'potencial_de_crecimiento') || c.potencial_de_crecimiento) - 5) / 100;
   const seasonFactor = (getVal(c, 'epoca_del_ano.estacionalidad_index') || c.epoca_del_ano.estacionalidad_index) > 0.7 ? 0.05 : 0;
-  const actEnv = getVal(c, 'propuestas_de_activacion.enviadas_12m');
-  const actAcep = getVal(c, 'propuestas_de_activacion.aceptadas');
-  const actRate = actEnv > 0 ? actAcep / actEnv : 0;
+  const actRate = getActivacionRate(c);
   const activationFactor = actRate > 0.5 ? 0.08 : -0.03;
   const churnRisk = predictChurn(c);
   const riskFactor = churnRisk > 0.6 ? -0.10 : churnRisk > 0.3 ? -0.03 : 0.02;
