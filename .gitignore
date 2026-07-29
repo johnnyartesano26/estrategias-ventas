@@ -1,0 +1,18 @@
+# Dependencias
+node_modules/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Datos sensibles (tokens, passwords)
+.env
+*.token
+
+# Output temporal
+/tmp/
+*.log
+
+# Python
+__pycache__/
+*.pyc
