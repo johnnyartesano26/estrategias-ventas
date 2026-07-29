@@ -181,7 +181,7 @@
     <div class="method-grid">
       <div class="method-item">
         <strong>Probabilidad de Recompra (30d)</strong>
-        <span>Peso: 30% Frecuencia de compra + 30% Días desde última compra + 20% Calidad de servicio + 20% Tasa de conversión (blend: 50% visitas concretadas/enviadas + 50% tracking PLV/Capacit./Eventos)</span>
+        <span>Peso: 30% Frecuencia de compra (3+/mes=muy bueno, 2/mes=bueno, 1/mes=normal, 0.67/mes=regular, 0.5/mes=bajo) + 30% Días desde última compra + 20% Calidad de servicio + 20% Tasa de conversión (blend: 50% visitas concretadas/enviadas + 50% tracking PLV/Capacit./Eventos)</span>
         <div class="weight">Fuente: Google Sheets (fecha última compra + frecuencia mensual)</div>
       </div>
       <div class="method-item">
@@ -873,7 +873,7 @@ function renderCustomerKPIs(c) {
       <h3>Riesgo de Churn</h3>
       <div class="kpi ${churnRisk<=0.3?'positive':churnRisk<=0.6?'warning':'danger'}">${(churnRisk*100).toFixed(0)}%</div>
       <div class="progress-bar"><div class="progress-fill ${churnRisk<=0.3?'high':churnRisk<=0.6?'med':'low'}" style="width:${churnRisk*100}%"></div></div>
-      <div class="kpi-meta">Tendencia: <strong>${(tendencia||'').toUpperCase()}</strong> | Quejas: <strong>${getVal(c,'calidad_del_servicio.quejas_ultimo_trimestre')}</strong> | Freq: <strong>${freq}/mes</strong></div>
+      <div class="kpi-meta">Tendencia: <strong>${(tendencia||'').toUpperCase()}</strong> | Quejas: <strong>${getVal(c,'calidad_del_servicio.quejas_ultimo_trimestre')}</strong> | Freq: <strong>${freq}/mes (${freq>=3?'Muy bueno':freq>=2?'Bueno':freq>=1?'Normal':freq>=0.67?'Regular':'Bajo'})</strong></div>
     </div>
     <div class="card">
       <h3>Ticket Estimado Próxima Compra</h3>
@@ -1032,8 +1032,21 @@ function renderCustomerDetail(c) {
 }
 
 // === FUNCIONES PREDICTIVAS (con documentacion de pesos y usando getVal para overrides) ===
+// Frecuencia realista para cerveza artesanal:
+// 3+/mes = muy bueno (score 1.0), 2/mes = bueno (0.8), 1/mes = normal (0.5),
+// 0.67/mes = regular (0.3), 0.5/mes = baja (0.15), <0.5 proporcional
+function freqToScore(freq) {
+  if (freq >= 3) return 1.0;
+  if (freq >= 2) return 0.8;
+  if (freq >= 1) return 0.5;
+  if (freq >= 0.67) return 0.3;
+  if (freq >= 0.5) return 0.15;
+  return Math.max(0, freq / 4);
+}
+
 function buildBreakdownBar(c, total) {
-  const freqScore = Math.min(getVal(c, 'frecuencia_de_compra.promedio_mensual') / 7, 1);
+  const freqRaw = getVal(c, 'frecuencia_de_compra.promedio_mensual');
+  const freqScore = freqToScore(freqRaw);
   const ultima = getVal(c, 'frecuencia_de_compra.ultima_compra') || c.frecuencia_de_compra.ultima_compra;
   const daysSinceLast = (new Date('2026-07-29') - new Date(ultima)) / (1000*60*60*24);
   const recencyScore = Math.max(0, 1 - daysSinceLast/30);
@@ -1046,8 +1059,10 @@ function buildBreakdownBar(c, total) {
   const wAct = activationScore * 0.20;
   const pct = (v) => (v * 100).toFixed(0);
 
+  const freqLabel = freqRaw >= 3 ? 'Muy bueno' : freqRaw >= 2 ? 'Bueno' : freqRaw >= 1 ? 'Normal' : freqRaw >= 0.67 ? 'Regular' : 'Bajo';
+
   const segments = [
-    { label: 'Frecuencia', value: wFreq, color: '#38bdf8', detail: `${getVal(c,'frecuencia_de_compra.promedio_mensual').toFixed(1)}/mes` },
+    { label: 'Frecuencia', value: wFreq, color: '#38bdf8', detail: `${freqRaw.toFixed(1)}/mes (${freqLabel})` },
     { label: 'Recencia', value: wRec, color: '#818cf8', detail: `${daysSinceLast.toFixed(0)}d` },
     { label: 'Servicio', value: wServ, color: '#a78bfa', detail: `${(getVal(c,'calidad_del_servicio.score')).toFixed(1)}/10` },
     { label: 'Activac.', value: wAct, color: '#34d399', detail: `${(activationScore*100).toFixed(0)}%` },
@@ -1075,7 +1090,8 @@ function getActivacionRate(c) {
 }
 
 function predictRepurchase(c) {
-  const freqScore = Math.min(getVal(c, 'frecuencia_de_compra.promedio_mensual') / 7, 1);
+  const freqRaw = getVal(c, 'frecuencia_de_compra.promedio_mensual');
+  const freqScore = freqToScore(freqRaw);
   const ultima = getVal(c, 'frecuencia_de_compra.ultima_compra') || c.frecuencia_de_compra.ultima_compra;
   const daysSinceLast = (new Date('2026-07-29') - new Date(ultima)) / (1000*60*60*24);
   const recencyScore = Math.max(0, 1 - daysSinceLast/30);
