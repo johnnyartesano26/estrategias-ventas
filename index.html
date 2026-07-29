@@ -785,43 +785,58 @@ function renderComparisonCharts() {
   const names = customers.map(c => c.id);
   const colors = customers.map(c => c.segmento==='A'?'#10b981':c.segmento==='B'?'#f59e0b':'#ef4444');
 
+  // Helper: promedio del array repetido N veces para linea de referencia
+  const avgLine = (arr) => {
+    const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+    return Array(arr.length).fill(avg);
+  };
+
   makeBar('chartTicket', names,
     [
-      { label:'Ticket Máximo ($)', data:customers.map(c=>c.ticket_max||c.ticket_promedio), bg:customers.map(()=>'rgba(56,189,248,0.15)') },
-      { label:'Ticket Promedio ($)', data:customers.map(c=>c.ticket_promedio), bg:colors },
-      { label:'Ticket Mínimo ($)', data:customers.map(c=>c.ticket_min||c.ticket_promedio), bg:customers.map(()=>'rgba(248,113,113,0.25)') },
+      { label:'Ticket Máximo ($)', data:customers.map(c=>c.ticket_max||c.ticket_promedio), bg:customers.map(()=>'rgba(56,189,248,0.12)'), order: 1 },
+      { label:'Ticket Promedio ($)', data:customers.map(c=>c.ticket_promedio), bg:colors, order: 2 },
+      { label:'Ticket Mínimo ($)', data:customers.map(c=>c.ticket_min||c.ticket_promedio), bg:customers.map(()=>'rgba(248,113,113,0.20)'), order: 1 },
+      { label:'Promedio General', data: avgLine(customers.map(c=>c.ticket_promedio)), type: 'line', borderColor: '#fbbf24', borderDash: [5,5], borderWidth: 2, pointRadius: 0, order: 3 },
     ],
     { yTitle:'$' });
 
   makeBar('chartGrowth', names,
-    [{ label:'Potencial de Crecimiento', data:customers.map(c=>c.potencial_de_crecimiento*10), bg:colors}],
+    [
+      { label:'Potencial de Crecimiento', data:customers.map(c=>c.potencial_de_crecimiento*10), bg:colors, order: 2 },
+      { label:'Promedio Segmentos', data: avgLine(customers.map(c=>c.potencial_de_crecimiento*10)), type: 'line', borderColor: '#fbbf24', borderDash: [5,5], borderWidth: 2, pointRadius: 0, order: 3 },
+    ],
     { yTitle:'% Score', yMax:100 });
 
   makeBar('chartQuality', names,
     [
-      { label:'Calidad Servicio', data:customers.map(c=>c.calidad_del_servicio.score*10), bg:customers.map(()=>'#38bdf8') },
-      { label:'Calidad Producto', data:customers.map(c=>c.calidad_del_producto.score*10), bg:customers.map(()=>'#818cf8')}
+      { label:'Calidad Servicio', data:customers.map(c=>c.calidad_del_servicio.score*10), bg:customers.map(()=>'#38bdf8'), order: 2 },
+      { label:'Calidad Producto', data:customers.map(c=>c.calidad_del_producto.score*10), bg:customers.map(()=>'#818cf8'), order: 2 },
+      { label:'Promedio Servicio', data: avgLine(customers.map(c=>c.calidad_del_servicio.score*10)), type: 'line', borderColor: '#38bdf8', borderDash: [3,3], borderWidth: 1, pointRadius: 0, order: 3 },
+      { label:'Promedio Producto', data: avgLine(customers.map(c=>c.calidad_del_producto.score*10)), type: 'line', borderColor: '#818cf8', borderDash: [3,3], borderWidth: 1, pointRadius: 0, order: 3 },
     ],
     { yMax:100 });
 
   makeBar('chartActivation', names,
     [
-      { label:'Conversion Visitas (%)', data:customers.map(c=>c.propuestas_de_activacion.tasa_conversion*100), bg:customers.map(()=>'#34d399') },
-      { label:'Cross-sell (%)', data:customers.map(c=>c.propuestas_activacion_producto.tasa_conversion*100), bg:customers.map(()=>'#a78bfa') }
+      { label:'Conversion Visitas (%)', data:customers.map(c=>c.propuestas_de_activacion.tasa_conversion*100), bg:customers.map(()=>'#34d399'), order: 2 },
+      { label:'Cross-sell (%)', data:customers.map(c=>c.propuestas_activacion_producto.tasa_conversion*100), bg:customers.map(()=>'#a78bfa'), order: 2 },
+      { label:'Promedio Visitas', data: avgLine(customers.map(c=>c.propuestas_de_activacion.tasa_conversion*100)), type: 'line', borderColor: '#34d399', borderDash: [3,3], borderWidth: 1, pointRadius: 0, order: 3 },
     ],
     { yMax:100 });
 
   makeBar('chartTax', names,
     [
-      { label:'Sensibilidad Tributaria (1-10)', data:customers.map(c=>c.tensiones_tributarias.score_afectacion),        bg:customers.map(c=>c.tensiones_tributarias.score_afectacion>=7?'#ef4444':c.tensiones_tributarias.score_afectacion>=5?'#f59e0b':'#10b981') },
-      { label:'Impacto IVA (%)', data:customers.map(c=>c.tensiones_tributarias.ultimo_incremento_iva_impacto*100), bg:customers.map(()=>'#94a3b8') }
+      { label:'Sensibilidad Tributaria (1-10)', data:customers.map(c=>c.tensiones_tributarias.score_afectacion), bg:customers.map(c=>c.tensiones_tributarias.score_afectacion>=7?'#ef4444':c.tensiones_tributarias.score_afectacion>=5?'#f59e0b':'#10b981'), order: 2 },
+      { label:'Impacto IVA (%)', data:customers.map(c=>c.tensiones_tributarias.ultimo_incremento_iva_impacto*100), bg:customers.map(()=>'#94a3b8'), order: 2 },
+      { label:'Promedio Sensib.', data: avgLine(customers.map(c=>c.tensiones_tributarias.score_afectacion)), type: 'line', borderColor: '#fbbf24', borderDash: [5,5], borderWidth: 2, pointRadius: 0, order: 3 },
     ],
     { yMax:100 });
 
   makeBar('chartFreq', names,
     [
-      { label:'Frecuencia Compra (mensual)', data:customers.map(c=>c.frecuencia_de_compra.promedio_mensual), bg:colors },
-      { label:'Entregas a Tiempo (%)', data:customers.map(c=>c.tiempo_de_entrega.entregas_a_tiempo_pct*100), bg:customers.map(()=>'#38bdf8') }
+      { label:'Frecuencia Compra (mensual)', data:customers.map(c=>c.frecuencia_de_compra.promedio_mensual), bg:colors, order: 2 },
+      { label:'Entregas a Tiempo (%)', data:customers.map(c=>c.tiempo_de_entrega.entregas_a_tiempo_pct*100), bg:customers.map(()=>'#38bdf8'), order: 2 },
+      { label:'Promedio Frecuencia', data: avgLine(customers.map(c=>c.frecuencia_de_compra.promedio_mensual)), type: 'line', borderColor: '#fbbf24', borderDash: [5,5], borderWidth: 2, pointRadius: 0, order: 3 },
     ],
     { yMax:100 });
 }
