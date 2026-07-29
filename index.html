@@ -302,7 +302,7 @@ function toggleEditPanel() {
 function buildEditFields(c) {
   const orig = (path) => getNested(c, path);
   const curr = (path) => getVal(c, path);
-  const hasOverride = (path) => customerOverrides[c.id] && curr(path) !== orig(path);
+  const hasOverride = (path) => customerOverrides[c.id] && customerOverrides[c.id][path.split('.')[0]];
 
   const fields = [
     { path: 'propuestas_de_activacion.enviadas_12m', label: 'Visitas/Ofertas enviadas (12m)', orig: orig('propuestas_de_activacion.enviadas_12m'), type: 'number', min: 0, max: 100, hint: 'Total de visitas, llamadas, emails y ofertas enviadas al cliente en 12 meses' },
@@ -316,16 +316,19 @@ function buildEditFields(c) {
 
   let html = '<div class="edit-row">';
   fields.forEach((f, i) => {
-    const currentVal = curr(f.path);
-    const hasDelta = hasOverride(f.path);
+    // Show the saved override value, or 0 if never edited
+    const savedVal = loadEditorOverrides(c.id);
+    const displayVal = (savedVal && savedVal[f.path] !== undefined) ? savedVal[f.path] : 0;
+    const isEdited = (savedVal && savedVal[f.path] !== undefined);
+
     html += `<div class="edit-field">
-      <label>${f.label} ${hasDelta ? '<span class="delta pos">(editado)</span>' : ''}</label>`;
+      <label>${f.label} ${isEdited ? '<span class="delta pos">(guardado)</span>' : ''}</label>`;
     if (f.type === 'range') {
-      html += `<input type="range" id="edit_${f.path.replace(/\./g,'_')}" value="${currentVal}" min="${f.min}" max="${f.max}" oninput="onEditField('${c.id}','${f.path}',this.value,'range')">
-        <div class="current-val">Actual: <strong>${currentVal}%</strong> (original: ${f.orig}%)</div>`;
+      html += `<input type="range" id="edit_${f.path.replace(/\./g,'_')}" value="${displayVal}" min="${f.min}" max="${f.max}" oninput="onEditField('${c.id}','${f.path}',this.value,'range')">
+        <div class="current-val">Guardado: <strong>${displayVal}%</strong> | JSON original: ${f.orig}%</div>`;
     } else {
-      html += `<input type="number" id="edit_${f.path.replace(/\./g,'_')}" value="${currentVal}" min="${f.min}" max="${f.max}" onchange="onEditField('${c.id}','${f.path}',this.value,'number')">
-        <div class="current-val">Original JSON: <strong>${f.orig}</strong></div>`;
+      html += `<input type="number" id="edit_${f.path.replace(/\./g,'_')}" value="${displayVal}" min="${f.min}" max="${f.max}" onchange="onEditField('${c.id}','${f.path}',this.value,'number')">
+        <div class="current-val">JSON original de referencia: <strong>${f.orig}</strong></div>`;
     }
     html += `<div class="hint">${f.hint}</div></div>`;
     if ((i+1) % 4 === 0 && i < fields.length - 1) html += '</div><div class="edit-row">';
@@ -334,30 +337,67 @@ function buildEditFields(c) {
   // Add activaciones detalladas section
   html += buildActivacionHTML(c);
   html += `<div class="edit-row" style="margin-top:8px;">
-    <button onclick="recalcSingleCustomer('${c.id}')" style="background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600;">🔄 Recalcular KPIs</button>
+    <button onclick="saveAndRecalc('${c.id}')" style="background:var(--success);color:#000;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600;"> Guardar y Recalcular KPIs</button>
     <button onclick="resetOverrides('${c.id}')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">↩ Restaurar valores originales</button>
   </div>`;
   return html;
 }
 
-function onEditField(cid, path, value, type) {
-  if (type === 'range') {
-    const pct = parseInt(value) / 100;
-    setOverride(cid, path, pct);
-    // Also update entregas_a_tiempo_pct if relevant
-    // Show the value
+// === PERSISTENCIA EN LOCALSTORAGE PARA EL EDITOR ===
+function loadEditorOverrides(cid) {
+  try {
+    const raw = localStorage.getItem('edit_' + cid);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveEditorOverrides(cid, data) {
+  localStorage.setItem('edit_' + cid, JSON.stringify(data));
+}
+
+function saveAndRecalc(cid) {
+  const c = getCustomer(cid);
+  if (!c) return;
+  // Collect current field values and save to localStorage
+  const editorData = {};
+  const fieldPaths = [
+    'propuestas_de_activacion.enviadas_12m',
+    'propuestas_de_activacion.aceptadas',
+    'propuestas_activacion_producto.enviadas_12m',
+    'propuestas_activacion_producto.aceptadas',
+    'calidad_del_servicio.quejas_ultimo_trimestre',
+    'tiempo_de_entrega.entregas_a_tiempo_pct',
+    'participacion_en_eventos.asistencias',
+  ];
+  fieldPaths.forEach(path => {
     const el = document.getElementById('edit_' + path.replace(/\./g,'_'));
     if (el) {
-      const displayVal = type === 'range' ? parseInt(value) : value;
+      const val = path.includes('entregas_a_tiempo') ? parseInt(el.value) / 100 : parseFloat(el.value) || 0;
+      editorData[path] = val;
     }
-    // Update the current value display
-    const field = el ? el.closest('.edit-field') : null;
+  });
+  saveEditorOverrides(cid, editorData);
+  // Sync overrides to getVal system
+  if (!customerOverrides[cid]) customerOverrides[cid] = {};
+  Object.entries(editorData).forEach(([path, val]) => setOverride(cid, path, val));
+  // Recalc
+  renderCustomerKPIs(c);
+  renderStrategiesSingle(c);
+}
+
+function onEditField(cid, path, value, type) {
+  // Just update the display, save happens on button click
+  const el = document.getElementById('edit_' + path.replace(/\./g,'_'));
+  if (el && type === 'range') {
+    const field = el.closest('.edit-field');
     if (field) {
       const cv = field.querySelector('.current-val');
-      if (cv && type === 'range') cv.innerHTML = `Actual: <strong>${value}%</strong>`;
+      if (cv) {
+        const origMatch = cv.textContent.match(/JSON original: (\d+)%/);
+        const orig = origMatch ? origMatch[1] : '?';
+        cv.innerHTML = `Guardado: <strong>${value}%</strong> | JSON original: ${orig}%`;
+      }
     }
-  } else if (type === 'number') {
-    setOverride(cid, path, parseFloat(value) || 0);
   }
 }
 
