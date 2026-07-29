@@ -850,8 +850,8 @@
   },
   {
     "id": "CLI-007",
-    "nombre": "DANIEL SCHMUTTE",
-    "tipo_negocio": "Bar/Restaurante",
+    "nombre": "Café Zeppelin (Daniel Schmutte)",
+    "tipo_negocio": "Café/Bar",
     "epoca_del_ano": {
       "preferencia": "Q2-Q3",
       "meses_fuertes": [
@@ -878,7 +878,7 @@
       "ciudad": "Medellin",
       "zona_logistica": "B",
       "distancia_centro_dist_km": 22,
-      "tipo_negocio": "Bar/Restaurante"
+      "tipo_negocio": "Café/Bar"
     },
     "tensiones_tributarias": {
       "sensibilidad": "media",
