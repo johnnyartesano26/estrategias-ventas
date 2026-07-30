@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encuesta · Madre Monte</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf7f0; --card: #fff; --text: #3d2a1d; --body: #6b5a4a;
+  --dim: #8c7b6b; --gold: #c88a3d; --gold-l: #e8a84c;
+  --green: #4caf50; --red: #e57373; --line: #e0d6c8;
+  --radius: 14px; --shadow: 0 3px 14px rgba(60,40,20,.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 700px 400px at 10% 0%, rgba(200,138,61,.04) 0%, transparent 55%);
+  color: var(--text); min-height: 100vh; padding: 30px 16px;
+}
+.container { max-width: 600px; margin: 0 auto; }
+.card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 28px 24px; box-shadow: var(--shadow); margin-bottom: 20px;
+  border: 1px solid transparent; transition: border-color .3s;
+}
+.card:focus-within { border-color: var(--gold); }
+h1 { font-family: 'Playfair Display', serif; font-size: 28px; text-align: center; margin-bottom: 4px; }
+h1 span { color: var(--gold); }
+.sub { text-align: center; color: var(--dim); font-size: 13px; margin-bottom: 24px; }
+label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; color: var(--text); }
+.label-hint { font-weight: 400; font-size: 12px; color: var(--dim); }
+
+/* Radio / Star groups */
+.rating-group { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.rating-btn {
+  width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--line);
+  background: var(--bg); color: var(--text); font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center;
+}
+.rating-btn:hover { border-color: var(--gold); transform: scale(1.05); }
+.rating-btn.selected { background: var(--gold); color: #fff; border-color: var(--gold); }
+.rating-group.nps .rating-btn { width: 38px; height: 38px; font-size: 13px; }
+.rating-group.nps .rating-btn.det { border-color: #e5737340; }
+.rating-group.nps .rating-btn.neu { border-color: #f59e0b40; }
+.rating-group.nps .rating-btn.pro { border-color: #34d39940; }
+.rating-group.nps .rating-btn.selected.det { background: var(--red); border-color: var(--red); }
+.rating-group.nps .rating-btn.selected.neu { background: #f59e0b; border-color: #f59e0b; }
+.rating-group.nps .rating-btn.selected.pro { background: var(--green); border-color: var(--green); }
+.nps-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-top: -14px; margin-bottom: 20px; }
+
+textarea {
+  width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line);
+  font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px;
+  background: var(--bg); color: var(--text);
+}
+textarea:focus { outline: none; border-color: var(--gold); }
+
+.section-divider { border: none; border-top: 1px solid var(--line); margin: 20px 0; }
+
+.btn {
+  display: block; width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: var(--gold); color: #fff; font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: all .2s; font-family: inherit; letter-spacing: .3px;
+}
+.btn:hover { background: var(--gold-l); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.success-msg {
+  display: none; text-align: center; padding: 40px 20px;
+}
+.success-msg h2 { color: var(--green); font-family: 'Playfair Display', serif; margin-bottom: 10px; }
+.success-msg p { color: var(--body); font-size: 14px; }
+
+.footer { text-align: center; color: var(--dim); font-size: 11px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="container" id="formContainer">
+  <h1>Madre <span>Monte</span></h1>
+  <p class="sub">Tu opinion nos ayuda a mejorar · 30 segundos</p>
+
+  <div class="card">
+    <label>¿Quien responde? <span class="label-hint">(opcional)</span></label>
+    <input type="text" id="nombre" placeholder="Tu nombre o el de tu negocio" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);font-family:inherit;font-size:14px;background:var(--bg);">
+
+    <hr class="section-divider">
+
+    <label>¿Donde consumes Madre Monte?</label>
+    <div class="rating-group" id="canalGroup">
+      <button class="rating-btn" data-value="bar" onclick="selectCanal('bar', this)">Bar</button>
+      <button class="rating-btn" data-value="mayorista" onclick="selectCanal('mayorista', this)">Compro por mayor</button>
+      <button class="rating-btn" data-value="particular" onclick="selectCanal('particular', this)">Particular</button>
+    </div>
+  </div>
+
+  <div class="card" id="npsCard" style="display:none;">
+    <label id="npsLabel">¿Que tanto nos recomendarias?</label>
+    <div class="rating-group nps" id="npsGroup"></div>
+    <div class="nps-labels">
+      <span>Nada probable</span><span>Muy probable</span>
+    </div>
+  </div>
+
+  <div class="card" id="calidadCard" style="display:none;">
+    <label>¿Como calificas la presentacion y calidad de las cervezas?</label>
+    <div class="rating-group">
+      <button class="rating-btn" onclick="selectRating('calidad', 1, this)">1</button>
+      <button class="rating-btn" onclick="selectRating('calidad', 2, this)">2</button>
+      <button class="rating-btn" onclick="selectRating('calidad', 3, this)">3</button>
+      <button class="rating-btn" onclick="selectRating('calidad', 4, this)">4</button>
+      <button class="rating-btn" onclick="selectRating('calidad', 5, this)">5</button>
+    </div>
+  </div>
+
+  <div class="card" id="servicioCard" style="display:none;">
+    <label>¿Como calificas la atencion y tiempos de servicio?</label>
+    <div class="rating-group">
+      <button class="rating-btn" onclick="selectRating('servicio', 1, this)">1</button>
+      <button class="rating-btn" onclick="selectRating('servicio', 2, this)">2</button>
+      <button class="rating-btn" onclick="selectRating('servicio', 3, this)">3</button>
+      <button class="rating-btn" onclick="selectRating('servicio', 4, this)">4</button>
+      <button class="rating-btn" onclick="selectRating('servicio', 5, this)">5</button>
+    </div>
+  </div>
+
+  <div class="card" id="feedbackCard" style="display:none;">
+    <label>¿Alguna queja, sugerencia o mejora? <span class="label-hint">(opcional)</span></label>
+    <textarea id="feedback" placeholder="Cuentanos que podemos mejorar..."></textarea>
+  </div>
+
+  <button class="btn" id="submitBtn" onclick="enviar()" disabled>Enviar respuestas</button>
+  <div class="success-msg" id="successMsg">
+    <h2>Gracias por tu respuesta</h2>
+    <p>Nos ayuda a servirte mejor cada dia.</p>
+  </div>
+</div>
+
+<footer class="footer">Cerveza Artesanal Madre Monte · 2026</footer>
+
+<script>
+let canal = null;
+let ratings = { calidad: null, servicio: null, nps: null };
+let npsBuilt = false;
+
+function selectCanal(value, btn) {
+  document.querySelectorAll('#canalGroup .rating-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  canal = value;
+
+  // Mostrar resto de preguntas
+  document.getElementById('npsCard').style.display = '';
+  document.getElementById('calidadCard').style.display = '';
+  document.getElementById('servicioCard').style.display = '';
+  document.getElementById('feedbackCard').style.display = '';
+
+  // Construir NPS dinamicamente segun canal
+  if (!npsBuilt) {
+    buildNPS(value);
+    npsBuilt = true;
+  } else {
+    updateNPSLabel(value);
+  }
+
+  checkSubmit();
+}
+
+function buildNPS(canal) {
+  const group = document.getElementById('npsGroup');
+  group.innerHTML = '';
+  for (let i = 0; i <= 10; i++) {
+    let cls = 'rating-btn';
+    if (i <= 6) cls += ' det';
+    else if (i <= 8) cls += ' neu';
+    else cls += ' pro';
+    group.innerHTML += `<button class="${cls}" onclick="selectRating('nps', ${i}, this)">${i}</button>`;
+  }
+  updateNPSLabel(canal);
+}
+
+function updateNPSLabel(canal) {
+  const label = document.getElementById('npsLabel');
+  if (canal === 'bar') {
+    label.textContent = '¿Invitarías a amigos al Bar Madre Monte? (0-10)';
+  } else {
+    label.textContent = '¿Nos recomendarías a otro negocio? (0-10)';
+  }
+}
+
+function selectRating(field, value, btn) {
+  const parent = btn.parentElement;
+  parent.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  ratings[field] = value;
+  checkSubmit();
+}
+
+function checkSubmit() {
+  const ok = canal && ratings.calidad !== null && ratings.servicio !== null && ratings.nps !== null;
+  document.getElementById('submitBtn').disabled = !ok;
+}
+
+function enviar() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const data = {
+    timestamp: new Date().toISOString(),
+    nombre: document.getElementById('nombre').value.trim() || 'Anónimo',
+    canal: canal,
+    nps: ratings.nps,
+    calidad_cerveza: ratings.calidad,
+    atencion_servicio: ratings.servicio,
+    feedback: document.getElementById('feedback').value.trim()
+  };
+
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzYOUR_SCRIPT_ID_HERE/exec';
+
+  fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(() => {
+    document.getElementById('formContainer').querySelectorAll('.card').forEach(c => c.style.display = 'none');
+    btn.style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
+  }).catch(() => {
+    // Aun con error mostramos gracias (no-cors no da respuesta)
+    document.getElementById('formContainer').querySelectorAll('.card').forEach(c => c.style.display = 'none');
+    btn.style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
+  });
+}
+</script>
+</body>
+</html>
