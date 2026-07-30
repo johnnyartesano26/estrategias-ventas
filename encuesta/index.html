@@ -4,202 +4,531 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Encuesta · Madre Monte</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #faf7f0; --card: #fff; --text: #3d2a1d; --body: #6b5a4a;
-  --dim: #8c7b6b; --gold: #c88a3d; --gold-l: #e8a84c;
-  --green: #4caf50; --red: #e57373; --line: #e0d6c8;
-  --radius: 14px; --shadow: 0 3px 14px rgba(60,40,20,.06);
+  --bg: #faf7f0;
+  --card: #ffffff;
+  --text: #3d2a1d;
+  --body: #6b5a4a;
+  --dim: #8c7b6b;
+  --gold: #c88a3d;
+  --gold-light: #e8a84c;
+  --gold-pale: #f5e6d3;
+  --green: #4caf50;
+  --red: #e57373;
+  --amber: #f59e0b;
+  --blue: #58a6ff;
+  --line: #e0d6c8;
+  --radius: 16px;
+  --shadow: 0 2px 16px rgba(60,40,20,.05);
+  --shadow-lg: 0 8px 32px rgba(60,40,20,.08);
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
-  background-image: radial-gradient(ellipse 700px 400px at 10% 0%, rgba(200,138,61,.04) 0%, transparent 55%);
-  color: var(--text); min-height: 100vh; padding: 30px 16px;
+  background-image:
+    radial-gradient(ellipse 900px 500px at 20% 0%, rgba(200,138,61,.06) 0%, transparent 55%),
+    radial-gradient(ellipse 600px 400px at 80% 100%, rgba(200,138,61,.04) 0%, transparent 55%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px 60px;
 }
-.container { max-width: 600px; margin: 0 auto; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 48px 20px 32px;
+  max-width: 520px;
+}
+.hero-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  display: block;
+}
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+.hero h1 span { color: var(--gold); font-style: italic; }
+.hero .tagline {
+  color: var(--dim);
+  font-size: 13px;
+  margin-top: 8px;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+.hero .divider {
+  width: 48px; height: 3px;
+  background: var(--gold);
+  margin: 18px auto;
+  border-radius: 2px;
+}
+
+/* ── Step indicator ── */
+.steps {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 0 0 28px;
+}
+.steps .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: all .3s ease;
+}
+.steps .dot.active { background: var(--gold); width: 28px; border-radius: 10px; }
+.steps .dot.done { background: var(--gold); opacity: .4; }
+
+/* ── Card ── */
+.wrapper {
+  width: 100%;
+  max-width: 480px;
+}
 .card {
-  background: var(--card); border-radius: var(--radius);
-  padding: 28px 24px; box-shadow: var(--shadow); margin-bottom: 20px;
-  border: 1px solid transparent; transition: border-color .3s;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  transition: all .3s ease;
 }
-.card:focus-within { border-color: var(--gold); }
-h1 { font-family: 'Playfair Display', serif; font-size: 28px; text-align: center; margin-bottom: 4px; }
-h1 span { color: var(--gold); }
-.sub { text-align: center; color: var(--dim); font-size: 13px; margin-bottom: 24px; }
-label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; color: var(--text); }
-.label-hint { font-weight: 400; font-size: 12px; color: var(--dim); }
+.card + .card { margin-top: 16px; }
 
-/* Radio / Star groups */
-.rating-group { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-.rating-btn {
-  width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--line);
-  background: var(--bg); color: var(--text); font-size: 15px; font-weight: 600;
-  cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center;
+/* ── Step content ── */
+.step { display: none; animation: fadeIn .35s ease; }
+.step.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.rating-btn:hover { border-color: var(--gold); transform: scale(1.05); }
-.rating-btn.selected { background: var(--gold); color: #fff; border-color: var(--gold); }
-.rating-group.nps .rating-btn { width: 38px; height: 38px; font-size: 13px; }
-.rating-group.nps .rating-btn.det { border-color: #e5737340; }
-.rating-group.nps .rating-btn.neu { border-color: #f59e0b40; }
-.rating-group.nps .rating-btn.pro { border-color: #34d39940; }
-.rating-group.nps .rating-btn.selected.det { background: var(--red); border-color: var(--red); }
-.rating-group.nps .rating-btn.selected.neu { background: #f59e0b; border-color: #f59e0b; }
-.rating-group.nps .rating-btn.selected.pro { background: var(--green); border-color: var(--green); }
-.nps-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-top: -14px; margin-bottom: 20px; }
 
-textarea {
-  width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line);
-  font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px;
-  background: var(--bg); color: var(--text);
+.card-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text);
 }
-textarea:focus { outline: none; border-color: var(--gold); }
+.card-hint {
+  font-size: 12px;
+  color: var(--dim);
+  margin-bottom: 20px;
+  letter-spacing: .2px;
+}
 
-.section-divider { border: none; border-top: 1px solid var(--line); margin: 20px 0; }
+/* ── Text input ── */
+.text-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color .2s;
+}
+.text-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,138,61,.08); }
+.text-input::placeholder { color: var(--dim); }
 
+/* ── Big select buttons ── */
+.select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.select-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  text-align: left;
+  font-weight: 500;
+}
+.select-btn:hover { border-color: var(--gold); background: rgba(200,138,61,.03); }
+.select-btn.selected { border-color: var(--gold); background: var(--gold-pale); }
+.select-btn .icon { font-size: 24px; flex-shrink: 0; }
+.select-btn .desc { font-size: 11px; color: var(--dim); font-weight: 400; margin-top: 2px; }
+
+/* ── NPS grid ── */
+.nps-grid {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.nps-btn {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nps-btn:hover { border-color: var(--gold); transform: scale(1.08); }
+.nps-btn.det { border-color: #f5d0d0; }
+.nps-btn.neu { border-color: #f5e6c8; }
+.nps-btn.pro { border-color: #c8e6c9; }
+.nps-btn.selected { color: #fff; font-weight: 700; }
+.nps-btn.selected.det { background: var(--red); border-color: var(--red); }
+.nps-btn.selected.neu { background: var(--amber); border-color: var(--amber); color: #3d2a1d; }
+.nps-btn.selected.pro { background: var(--green); border-color: var(--green); }
+.nps-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+/* ── Star rating ── */
+.star-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.star-btn {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: 26px;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.star-btn:hover { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(200,138,61,.12); }
+.star-btn.selected {
+  background: var(--gold);
+  color: #fff;
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(200,138,61,.18);
+}
+
+/* ── Textarea ── */
+.textarea-input {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+.textarea-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,138,61,.08); }
+
+/* ── Buttons ── */
+.btn-row { display: flex; gap: 10px; margin-top: 20px; }
 .btn {
-  display: block; width: 100%; padding: 14px; border: none; border-radius: 12px;
-  background: var(--gold); color: #fff; font-size: 16px; font-weight: 700;
-  cursor: pointer; transition: all .2s; font-family: inherit; letter-spacing: .3px;
+  flex: 1;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .2px;
 }
-.btn:hover { background: var(--gold-l); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.success-msg {
-  display: none; text-align: center; padding: 40px 20px;
+.btn-primary {
+  background: var(--gold);
+  color: #fff;
+  border: 2px solid var(--gold);
 }
-.success-msg h2 { color: var(--green); font-family: 'Playfair Display', serif; margin-bottom: 10px; }
-.success-msg p { color: var(--body); font-size: 14px; }
+.btn-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-secondary {
+  background: transparent;
+  color: var(--dim);
+  border: 2px solid var(--line);
+}
+.btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
 
-.footer { text-align: center; color: var(--dim); font-size: 11px; margin-top: 20px; }
+/* ── Success ── */
+.success {
+  display: none;
+  text-align: center;
+  padding: 40px 20px;
+  animation: fadeIn .5s ease;
+}
+.success .check {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: rgba(76,175,80,.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 36px;
+}
+.success h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.success p { color: var(--body); font-size: 14px; line-height: 1.6; }
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  color: var(--dim);
+  font-size: 11px;
+  margin-top: auto;
+  padding-top: 40px;
+  letter-spacing: .3px;
+}
+.footer span { color: var(--gold); }
+
+@media (max-width: 480px) {
+  .card { padding: 24px 18px; }
+  .hero h1 { font-size: 26px; }
+  .star-btn { width: 48px; height: 48px; font-size: 22px; }
+  .nps-btn { font-size: 12px; }
+}
 </style>
 </head>
 <body>
 
-<div class="container" id="formContainer">
-  <h1>Madre <span>Monte</span></h1>
-  <p class="sub">Tu opinion nos ayuda a mejorar · 30 segundos</p>
-
-  <div class="card">
-    <label>¿Quien responde? <span class="label-hint">(opcional)</span></label>
-    <input type="text" id="nombre" placeholder="Tu nombre o el de tu negocio" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);font-family:inherit;font-size:14px;background:var(--bg);">
-
-    <hr class="section-divider">
-
-    <label>¿Donde consumes Madre Monte?</label>
-    <div class="rating-group" id="canalGroup">
-      <button class="rating-btn" data-value="bar" onclick="selectCanal('bar', this)">Bar</button>
-      <button class="rating-btn" data-value="mayorista" onclick="selectCanal('mayorista', this)">Compro por mayor</button>
-      <button class="rating-btn" data-value="particular" onclick="selectCanal('particular', this)">Particular</button>
-    </div>
-  </div>
-
-  <div class="card" id="npsCard" style="display:none;">
-    <label id="npsLabel">¿Que tanto nos recomendarias?</label>
-    <div class="rating-group nps" id="npsGroup"></div>
-    <div class="nps-labels">
-      <span>Nada probable</span><span>Muy probable</span>
-    </div>
-  </div>
-
-  <div class="card" id="calidadCard" style="display:none;">
-    <label>¿Como calificas la presentacion y calidad de las cervezas?</label>
-    <div class="rating-group">
-      <button class="rating-btn" onclick="selectRating('calidad', 1, this)">1</button>
-      <button class="rating-btn" onclick="selectRating('calidad', 2, this)">2</button>
-      <button class="rating-btn" onclick="selectRating('calidad', 3, this)">3</button>
-      <button class="rating-btn" onclick="selectRating('calidad', 4, this)">4</button>
-      <button class="rating-btn" onclick="selectRating('calidad', 5, this)">5</button>
-    </div>
-  </div>
-
-  <div class="card" id="servicioCard" style="display:none;">
-    <label>¿Como calificas la atencion y tiempos de servicio?</label>
-    <div class="rating-group">
-      <button class="rating-btn" onclick="selectRating('servicio', 1, this)">1</button>
-      <button class="rating-btn" onclick="selectRating('servicio', 2, this)">2</button>
-      <button class="rating-btn" onclick="selectRating('servicio', 3, this)">3</button>
-      <button class="rating-btn" onclick="selectRating('servicio', 4, this)">4</button>
-      <button class="rating-btn" onclick="selectRating('servicio', 5, this)">5</button>
-    </div>
-  </div>
-
-  <div class="card" id="feedbackCard" style="display:none;">
-    <label>¿Alguna queja, sugerencia o mejora? <span class="label-hint">(opcional)</span></label>
-    <textarea id="feedback" placeholder="Cuentanos que podemos mejorar..."></textarea>
-  </div>
-
-  <button class="btn" id="submitBtn" onclick="enviar()" disabled>Enviar respuestas</button>
-  <div class="success-msg" id="successMsg">
-    <h2>Gracias por tu respuesta</h2>
-    <p>Nos ayuda a servirte mejor cada dia.</p>
-  </div>
+<div class="hero">
+  <span class="hero-icon"></span>
+  <h1>Cerveza <span>Madre Monte</span></h1>
+  <p class="tagline">Tu voz construye nuestra cerveza</p>
+  <div class="divider"></div>
 </div>
 
-<footer class="footer">Cerveza Artesanal Madre Monte · 2026</footer>
+<div class="steps" id="steps">
+  <span class="dot active" data-step="0"></span>
+  <span class="dot" data-step="1"></span>
+  <span class="dot" data-step="2"></span>
+  <span class="dot" data-step="3"></span>
+  <span class="dot" data-step="4"></span>
+</div>
+
+<div class="wrapper" id="formWrapper">
+
+  <!-- STEP 0: Nombre -->
+  <div class="card step active" data-step="0">
+    <div class="card-label">¿Quien eres?</div>
+    <div class="card-hint">Tu nombre o el de tu negocio. No es obligatorio.</div>
+    <input type="text" class="text-input" id="nombre" placeholder="Ej: Juan Perez o Bar La Esquina" autocomplete="name">
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="skipStep()">Saltar</button>
+      <button class="btn btn-primary" onclick="nextStep(0)">Siguiente</button>
+    </div>
+  </div>
+
+  <!-- STEP 1: Canal -->
+  <div class="card step" data-step="1">
+    <div class="card-label">¿Donde nos conoces?</div>
+    <div class="card-hint">Asi personalizamos las preguntas</div>
+    <div class="select-group" id="canalGroup">
+      <button class="select-btn" data-value="bar" onclick="selectCanal(this)">
+        <span class="icon"></span>
+        <span>Bar Madre Monte<span class="desc">Visitas el bar, tomas en el sitio</span></span>
+      </button>
+      <button class="select-btn" data-value="mayorista" onclick="selectCanal(this)">
+        <span class="icon"></span>
+        <span>Compro por mayor<span class="desc">Soy cliente distribuidor, bar o restaurante</span></span>
+      </button>
+      <button class="select-btn" data-value="particular" onclick="selectCanal(this)">
+        <span class="icon"></span>
+        <span>Particular<span class="desc">Compro para consumo personal</span></span>
+      </button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep(1)">Atras</button>
+      <button class="btn btn-primary" id="canalNext" disabled onclick="nextStep(1)">Siguiente</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: NPS -->
+  <div class="card step" data-step="2">
+    <div class="card-label" id="npsLabel">¿Que tanto nos recomendarias?</div>
+    <div class="card-hint">0 = nada probable · 10 = muy probable</div>
+    <div class="nps-grid" id="npsGrid"></div>
+    <div class="nps-legend">
+      <span>Nada probable</span><span>Neutral</span><span>Muy probable</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep(2)">Atras</button>
+      <button class="btn btn-primary" id="npsNext" disabled onclick="nextStep(2)">Siguiente</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Ratings -->
+  <div class="card step" data-step="3">
+    <div class="card-label">Calidad y servicio</div>
+    <div class="card-hint">1 = muy mal · 5 = excelente</div>
+
+    <label style="font-size:14px;font-weight:600;display:block;margin:16px 0 10px;">Presentacion y calidad de las cervezas</label>
+    <div class="star-group" id="starCalidad"></div>
+
+    <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Atencion y tiempos de servicio</label>
+    <div class="star-group" id="starServicio"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep(3)">Atras</button>
+      <button class="btn btn-primary" id="ratingsNext" disabled onclick="nextStep(3)">Siguiente</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Feedback -->
+  <div class="card step" data-step="4">
+    <div class="card-label">¿Algo mas que contarnos?</div>
+    <div class="card-hint">Una queja, una idea, un elogio... lo que quieras.</div>
+    <textarea class="textarea-input" id="feedback" placeholder="Cuentanos que podemos mejorar..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep(4)">Atras</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="enviar()">Enviar respuestas</button>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="card success" id="successMsg">
+    <div class="check"></div>
+    <h2>Gracias</h2>
+    <p>Cada respuesta nos ayuda a servirte mejor.<br>Salud.</p>
+  </div>
+
+</div>
+
+<footer class="footer">
+  Cerveza Artesanal <span>Madre Monte</span> · Medellin · 2026
+</footer>
 
 <script>
 let canal = null;
-let ratings = { calidad: null, servicio: null, nps: null };
-let npsBuilt = false;
+let ratings = { nps: null, calidad: null, servicio: null };
+let currentStep = 0;
+const totalSteps = 5;
 
-function selectCanal(value, btn) {
-  document.querySelectorAll('#canalGroup .rating-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  canal = value;
-
-  // Mostrar resto de preguntas
-  document.getElementById('npsCard').style.display = '';
-  document.getElementById('calidadCard').style.display = '';
-  document.getElementById('servicioCard').style.display = '';
-  document.getElementById('feedbackCard').style.display = '';
-
-  // Construir NPS dinamicamente segun canal
-  if (!npsBuilt) {
-    buildNPS(value);
-    npsBuilt = true;
-  } else {
-    updateNPSLabel(value);
-  }
-
-  checkSubmit();
-}
-
-function buildNPS(canal) {
-  const group = document.getElementById('npsGroup');
-  group.innerHTML = '';
+// Build NPS buttons
+(function() {
+  const grid = document.getElementById('npsGrid');
   for (let i = 0; i <= 10; i++) {
-    let cls = 'rating-btn';
+    let cls = 'nps-btn';
     if (i <= 6) cls += ' det';
     else if (i <= 8) cls += ' neu';
     else cls += ' pro';
-    group.innerHTML += `<button class="${cls}" onclick="selectRating('nps', ${i}, this)">${i}</button>`;
+    grid.innerHTML += `<button class="${cls}" onclick="selectNPS(${i}, this)">${i}</button>`;
   }
-  updateNPSLabel(canal);
-}
+})();
 
-function updateNPSLabel(canal) {
-  const label = document.getElementById('npsLabel');
-  if (canal === 'bar') {
-    label.textContent = '¿Invitarías a amigos al Bar Madre Monte? (0-10)';
-  } else {
-    label.textContent = '¿Nos recomendarías a otro negocio? (0-10)';
+// Build star groups
+['starCalidad','starServicio'].forEach(id => {
+  const group = document.getElementById(id);
+  for (let i = 1; i <= 5; i++) {
+    group.innerHTML += `<button class="star-btn" onclick="selectStar('${id === 'starCalidad' ? 'calidad' : 'servicio'}', ${i}, this)"></button>`;
   }
-}
+});
 
-function selectRating(field, value, btn) {
-  const parent = btn.parentElement;
-  parent.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+function selectCanal(btn) {
+  document.querySelectorAll('#canalGroup .select-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
-  ratings[field] = value;
-  checkSubmit();
+  canal = btn.dataset.value;
+  document.getElementById('canalNext').disabled = false;
+  // Update NPS label
+  const label = document.getElementById('npsLabel');
+  label.textContent = canal === 'bar'
+    ? '¿Invitarías a amigos al Bar Madre Monte?'
+    : '¿Nos recomendarías a otro negocio?';
 }
 
-function checkSubmit() {
-  const ok = canal && ratings.calidad !== null && ratings.servicio !== null && ratings.nps !== null;
-  document.getElementById('submitBtn').disabled = !ok;
+function selectNPS(value, btn) {
+  document.querySelectorAll('#npsGrid .nps-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  ratings.nps = value;
+  document.getElementById('npsNext').disabled = false;
+}
+
+function selectStar(field, value, btn) {
+  const group = btn.parentElement;
+  group.querySelectorAll('.star-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.textContent = '';
+  });
+  // Fill all stars up to value
+  const allBtns = group.querySelectorAll('.star-btn');
+  allBtns.forEach((b, i) => {
+    if (i < value) { b.classList.add('selected'); b.textContent = ''; }
+  });
+  ratings[field] = value;
+  checkRatingsDone();
+}
+
+function checkRatingsDone() {
+  document.getElementById('ratingsNext').disabled = !(ratings.calidad && ratings.servicio);
+}
+
+function updateSteps(idx) {
+  document.querySelectorAll('#steps .dot').forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i < idx) d.classList.add('done');
+    if (i === idx) d.classList.add('active');
+  });
+}
+
+function showStep(idx) {
+  document.querySelectorAll('.step').forEach(s => {
+    s.classList.remove('active');
+  });
+  const target = document.querySelector(`.step[data-step="${idx}"]`);
+  if (target) target.classList.add('active');
+  updateSteps(idx);
+  currentStep = idx;
+  document.getElementById('formWrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function nextStep(from) {
+  if (from < totalSteps - 1) showStep(from + 1);
+}
+
+function prevStep(from) {
+  if (from > 0) showStep(from - 1);
+}
+
+function skipStep() {
+  showStep(1);
 }
 
 function enviar() {
@@ -209,8 +538,8 @@ function enviar() {
 
   const data = {
     timestamp: new Date().toISOString(),
-    nombre: document.getElementById('nombre').value.trim() || 'Anónimo',
-    canal: canal,
+    nombre: document.getElementById('nombre').value.trim() || 'Anonimo',
+    canal: canal || '',
     nps: ratings.nps,
     calidad_cerveza: ratings.calidad,
     atencion_servicio: ratings.servicio,
@@ -219,21 +548,13 @@ function enviar() {
 
   const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzYOUR_SCRIPT_ID_HERE/exec';
 
-  fetch(SHEET_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).then(() => {
-    document.getElementById('formContainer').querySelectorAll('.card').forEach(c => c.style.display = 'none');
-    btn.style.display = 'none';
-    document.getElementById('successMsg').style.display = 'block';
-  }).catch(() => {
-    // Aun con error mostramos gracias (no-cors no da respuesta)
-    document.getElementById('formContainer').querySelectorAll('.card').forEach(c => c.style.display = 'none');
-    btn.style.display = 'none';
-    document.getElementById('successMsg').style.display = 'block';
-  });
+  fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    .finally(() => {
+      document.getElementById('steps').style.display = 'none';
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById('successMsg').style.display = 'block';
+      document.getElementById('successMsg').scrollIntoView({ behavior: 'smooth' });
+    });
 }
 </script>
 </body>
