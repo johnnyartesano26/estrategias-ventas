@@ -361,25 +361,21 @@ body {
 
   <!-- STEP 1: Canal -->
   <div class="card step" data-step="1">
-    <div class="card-label">¿Donde nos conoces?</div>
-    <div class="card-hint">Asi personalizamos las preguntas</div>
+    <div class="card-label">¿Donde consumes Madre Monte?</div>
+    <div class="card-hint" style="color:var(--gold);font-weight:500;">Selecciona una opcion para continuar</div>
     <div class="select-group" id="canalGroup">
       <button class="select-btn" data-value="bar" onclick="selectCanal(this)">
         <span class="icon"></span>
-        <span>Bar Madre Monte<span class="desc">Visitas el bar, tomas en el sitio</span></span>
+        <span>Visito el Bar Madre Monte<span class="desc">Tomo en el sitio, voy al bar</span></span>
       </button>
       <button class="select-btn" data-value="mayorista" onclick="selectCanal(this)">
         <span class="icon"></span>
-        <span>Compro por mayor<span class="desc">Soy cliente distribuidor, bar o restaurante</span></span>
+        <span>Compro al por mayor<span class="desc">Soy dueño de bar, restaurante, tienda o distribuidor</span></span>
       </button>
       <button class="select-btn" data-value="particular" onclick="selectCanal(this)">
         <span class="icon"></span>
-        <span>Particular<span class="desc">Compro para consumo personal</span></span>
+        <span>Compro por unidades<span class="desc">Consumo personal, llevo para mi casa</span></span>
       </button>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-secondary" onclick="prevStep(1)">Atras</button>
-      <button class="btn btn-primary" id="canalNext" disabled onclick="nextStep(1)">Siguiente</button>
     </div>
   </div>
 
@@ -468,12 +464,13 @@ function selectCanal(btn) {
   document.querySelectorAll('#canalGroup .select-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   canal = btn.dataset.value;
-  document.getElementById('canalNext').disabled = false;
   // Update NPS label
   const label = document.getElementById('npsLabel');
   label.textContent = canal === 'bar'
     ? '¿Invitarías a amigos al Bar Madre Monte?'
     : '¿Nos recomendarías a otro negocio?';
+  // Auto-avanzar al siguiente paso
+  setTimeout(() => showStep(2), 300);
 }
 
 function selectNPS(value, btn) {
