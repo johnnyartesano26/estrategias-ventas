@@ -282,6 +282,22 @@ body {
 }
 .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
 
+/* ── Client match badge ── */
+.match-hint {
+  margin-top: 12px; padding: 10px 14px;
+  background: rgba(76,175,80,.08); border: 1px solid rgba(76,175,80,.25);
+  border-radius: 10px; font-size: 13px; animation: fadeIn .3s ease;
+}
+.match-badge {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text); font-weight: 500;
+}
+.match-badge::before {
+  content: 'Te encontramos:';
+  font-size: 11px; color: var(--green); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+
 /* ── Success ── */
 .success {
   display: none;
@@ -352,7 +368,8 @@ body {
   <div class="card step active" data-step="0">
     <div class="card-label">¿Quien eres?</div>
     <div class="card-hint">Tu nombre o el de tu negocio. No es obligatorio.</div>
-    <input type="text" class="text-input" id="nombre" placeholder="Ej: Juan Perez o Bar La Esquina" autocomplete="name">
+    <input type="text" class="text-input" id="nombre" placeholder="Ej: Juan Perez o Bar La Esquina" autocomplete="name" oninput="checkClientMatch()">
+    <div class="match-hint" id="clientMatchHint" style="display:none;"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="skipStep()">Saltar</button>
       <button class="btn btn-primary" onclick="nextStep(0)">Siguiente</button>
@@ -435,9 +452,25 @@ body {
 </footer>
 
 <script>
+// ── Clientes registrados (sincronizado con el dashboard) ──
+const CLIENT_LIST = [
+  {"id":"CLI-000","nombre":"BAR MADRE MONTE (Propio)","tipo":"Bar Propio - Canal Directo"},
+  {"id":"CLI-001","nombre":"Juan Carlos Orrego Zapata","tipo":"Distribuidor/Bar"},
+  {"id":"CLI-002","nombre":"INVERSIONES LATINERIA S.A.S","tipo":"Empresa"},
+  {"id":"CLI-003","nombre":"Johnny Anderle Guerrero Bucheli","tipo":"Interno/Pruebas"},
+  {"id":"CLI-004","nombre":"CECILIA ALICIA BRAVO DE NOHAVA","tipo":"Particular/Alto Consumo"},
+  {"id":"CLI-005","nombre":"Leonardo Gaitan Zuluaga","tipo":"Bar/Restaurante"},
+  {"id":"CLI-006","nombre":"CHARCUTERIA CERDEÑA","tipo":"Gastronomico"},
+  {"id":"CLI-007","nombre":"Café Zeppelin (Daniel Schmutte)","tipo":"Café/Bar"},
+  {"id":"CLI-008","nombre":"METAMORFOSIS MEDELLÍN S.A.S","tipo":"Eventos"},
+  {"id":"CLI-009","nombre":"Astrid Veronica Porras Giraldo","tipo":"Particular/Alto Consumo"},
+  {"id":"CLI-010","nombre":"SEVEN MINIMERCADO","tipo":"Minimercado"}
+];
+
 let canal = null;
 let ratings = { nps: null, calidad: null, servicio: null };
 let currentStep = 0;
+let matchedClient = null;
 const totalSteps = 5;
 
 // Build NPS buttons
@@ -530,6 +563,50 @@ function skipStep() {
   showStep(1);
 }
 
+// ── Client matching ──
+function normalize(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findClient(input) {
+  if (!input || input.length < 3) return null;
+  const q = normalize(input);
+  let best = null; let bestScore = 0;
+
+  CLIENT_LIST.forEach(c => {
+    const n = normalize(c.nombre);
+    // Exact match
+    if (n === q) { best = c; bestScore = 100; return; }
+    // Contains match
+    if (n.includes(q) || q.includes(n)) {
+      const score = Math.min(n.length, q.length) / Math.max(n.length, q.length) * 90;
+      if (score > bestScore) { best = c; bestScore = score; }
+    }
+    // Word overlap
+    const qWords = q.split(/\s+/).filter(w => w.length > 2);
+    const nWords = n.split(/\s+/).filter(w => w.length > 2);
+    let overlap = 0;
+    qWords.forEach(qw => { if (nWords.some(nw => nw.includes(qw) || qw.includes(nw))) overlap++; });
+    const score = overlap / Math.max(qWords.length, 1) * 70;
+    if (score > bestScore) { best = c; bestScore = score; }
+  });
+
+  return bestScore >= 50 ? best : null;
+}
+
+function checkClientMatch() {
+  const input = document.getElementById('nombre').value.trim();
+  const hintEl = document.getElementById('clientMatchHint');
+  matchedClient = findClient(input);
+
+  if (matchedClient) {
+    hintEl.innerHTML = '<span class="match-badge">' + matchedClient.id + ' — ' + matchedClient.nombre + '</span>';
+    hintEl.style.display = 'block';
+  } else {
+    hintEl.style.display = 'none';
+  }
+}
+
 function enviar() {
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -538,6 +615,8 @@ function enviar() {
   const data = {
     timestamp: new Date().toISOString(),
     nombre: document.getElementById('nombre').value.trim() || 'Anonimo',
+    cliente_id: matchedClient ? matchedClient.id : '',
+    cliente_nombre: matchedClient ? matchedClient.nombre : '',
     canal: canal || '',
     nps: ratings.nps,
     calidad_cerveza: ratings.calidad,

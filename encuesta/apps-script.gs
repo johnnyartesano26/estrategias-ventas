@@ -4,7 +4,9 @@ function doPost(e) {
 
   sheet.appendRow([
     data.timestamp || new Date().toISOString(),
-    data.nombre || 'Anónimo',
+    data.nombre || 'Anonimo',
+    data.cliente_id || '',
+    data.cliente_nombre || '',
     data.canal || '',
     data.nps,
     data.calidad_cerveza,
