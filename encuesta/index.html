@@ -48,19 +48,18 @@ body {
   padding: 48px 20px 32px;
   max-width: 520px;
 }
-.hero-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-  display: block;
+.hero-logo {
+  max-width: 160px;
+  height: auto;
+  margin-bottom: 16px;
 }
 .hero h1 {
   font-family: 'Playfair Display', serif;
   font-size: 34px;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--text);
+  color: var(--gold);
 }
-.hero h1 span { color: var(--gold); font-style: italic; }
 .hero .tagline {
   color: var(--dim);
   font-size: 13px;
@@ -330,8 +329,11 @@ body {
 <body>
 
 <div class="hero">
-  <span class="hero-icon"></span>
-  <h1>Cerveza <span>Madre Monte</span></h1>
+  <img src="assets/images/main-logo.png"
+       srcset="https://www.cervezamadremonte.com/assets/images/main-logo.png"
+       onerror="this.style.display='none'"
+       alt="Madre Monte" class="hero-logo">
+  <h1>Madre Monte</h1>
   <p class="tagline">Tu voz construye nuestra cerveza</p>
   <div class="divider"></div>
 </div>
