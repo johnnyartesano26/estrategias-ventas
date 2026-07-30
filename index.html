@@ -123,6 +123,31 @@
   .edit-field input[type="range"] { padding: 0; accent-color: var(--accent); }
   .edit-field .hint { font-size: 0.62rem; color: var(--text2); margin-top: 1px; }
   .edit-field .current-val { font-size: 0.65rem; color: var(--primary); }
+.edit-field .current-val { font-size: 0.65rem; color: var(--primary); }
+
+/* ── Cuestionario Churn 1-5 ── */
+.churn-quest-section { margin-top: 16px; border-top: 2px solid var(--primary); padding-top: 14px; }
+.churn-quest-section h3 { color: var(--primary); font-size: 0.85rem; margin-bottom: 2px; }
+.churn-quest-section .quest-subtitle { font-size: 0.68rem; color: var(--text2); margin-bottom: 12px; }
+.churn-quest-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--surface2); }
+.churn-quest-row:last-child { border-bottom: none; }
+.churn-quest-label { flex: 1; min-width: 180px; }
+.churn-quest-label strong { display: block; font-size: 0.78rem; color: var(--text); }
+.churn-quest-label span { font-size: 0.65rem; color: var(--text2); }
+.churn-quest-rating { display: flex; gap: 4px; align-items: center; }
+.churn-star { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); font-size: 0.78rem; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.churn-star:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.08); }
+.churn-star.sel-1 { background: #064e3b; color: #10b981; border-color: #10b981; }
+.churn-star.sel-2 { background: #1a3a1a; color: #34d399; border-color: #34d399; }
+.churn-star.sel-3 { background: #78350f; color: #f59e0b; border-color: #f59e0b; }
+.churn-star.sel-4 { background: #7f1d1d; color: #f87171; border-color: #f87171; }
+.churn-star.sel-5 { background: #450a0a; color: #ef4444; border-color: #ef4444; }
+.churn-quest-impact { font-size: 0.7rem; color: var(--accent); white-space: nowrap; min-width: 55px; text-align: right; font-weight: 600; }
+.churn-quest-total { margin-top: 12px; padding: 10px 14px; background: rgba(56,189,248,0.06); border: 1px solid var(--primary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+.churn-quest-total .total-label { font-size: 0.8rem; font-weight: 600; }
+.churn-quest-total .total-value { font-size: 1.4rem; font-weight: 700; }
+.churn-quest-total .total-sem { font-size: 0.7rem; padding: 2px 10px; border-radius: 10px; margin-left: 8px; }
+.churn-quest-ref { font-size: 0.62rem; color: var(--text2); margin-top: 6px; text-align: right; }
   .delta { font-size: 0.7rem; }
   .delta.pos { color: var(--success); } .delta.neg { color: var(--danger); } .delta.neu { color: var(--text2); }
 
@@ -236,6 +261,7 @@
     <h3>Editor de Variables — Ajusta los datos y recalcula KPIs en tiempo real</h3>
     <p class="edit-subtitle">Los cambios se aplican al vuelo sobre las fórmulas predictivas. El valor original del JSON se muestra como referencia.</p>
     <div id="editFields"></div>
+  <div id="churnQuestionnaire"></div>
   </div>
 
   <!-- Order History Peaks -->
@@ -352,6 +378,7 @@ function buildEditFields(c) {
   html += '</div>';
   // Add activaciones detalladas section
   html += buildActivacionHTML(c);
+  setTimeout(() => renderChurnQuestionnaire(c.id), 100);
   html += `<div class="edit-row" style="margin-top:8px;">
     <button onclick="saveAndRecalc('${c.id}')" style="background:var(--success);color:#000;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600;"> Guardar y Recalcular KPIs</button>
     <button onclick="resetOverrides('${c.id}')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">↩ Restaurar valores originales</button>
@@ -401,6 +428,7 @@ function saveAndRecalc(cid) {
   // Recalc
   renderCustomerKPIs(c);
   renderOrderHistory(c);
+  renderChurnQuestionnaire(c.id);
   renderStrategiesSingle(c);
   // Flash feedback
   const btns = document.querySelectorAll('button');
@@ -446,6 +474,7 @@ function resetOverrides(cid) {
 function buildEditFieldsForPanel(c) {
   const panel = document.getElementById('editFields');
   if (panel) panel.innerHTML = buildEditFields(c);
+  renderChurnQuestionnaire(c.id);
 }
 
 // === SISTEMA DE ACTIVACIONES DETALLADAS (PLV, vasos, posavasos, habladores, capacitaciones, eventos) ===
@@ -1160,7 +1189,108 @@ function predictUpsell(c) {
   return ticketVsSegment*0.15 + activationScore*0.25 + productActivation*0.25 + eventScore*0.15 + growth*0.20;
 }
 
+// === CUESTIONARIO CHURN 1-5 (por cliente, guardado en localStorage) ===
+const CHURN_FACTORS = [
+  { key: 'tendencia', label: 'Tendencia de frecuencia', hint: 'Como evoluciona la frecuencia de compra', weight: 0.30,
+    options: ['Creciendo fuerte', 'Creciendo leve', 'Estable', 'Bajando', 'Desplomandose'],
+    scores: [0.05, 0.15, 0.30, 0.60, 0.90] },
+  { key: 'tributaria', label: 'Sensibilidad tributaria', hint: 'Que tanto le afectan cambios de IVA/impuestos', weight: 0.20,
+    options: ['Inmune', 'Baja', 'Media', 'Alta', 'Extrema'],
+    scores: [0.00, 0.25, 0.50, 0.75, 1.00] },
+  { key: 'quejas', label: 'Quejas de servicio', hint: 'Cantidad de quejas en el ultimo trimestre', weight: 0.15,
+    options: ['Ninguna', '1 queja', '2-3 quejas', '4-5 quejas', '6+ quejas'],
+    scores: [0.00, 0.25, 0.50, 0.75, 1.00] },
+  { key: 'entregas', label: 'Entregas a tiempo', hint: 'Porcentaje de pedidos entregados a tiempo', weight: 0.15,
+    options: ['Siempre (100%)', 'Casi siempre (>90%)', 'Frecuente (70-90%)', 'Irregular (50-70%)', 'Muy demorado (<50%)'],
+    scores: [0.00, 0.25, 0.50, 0.75, 1.00] },
+  { key: 'activaciones', label: 'Aceptacion de activaciones', hint: 'Que tanto acepta PLV, catas, cross-sell, eventos', weight: 0.20,
+    options: ['Acepta todo (>90%)', 'Acepta mucho (70-90%)', 'Acepta algo (40-70%)', 'Acepta poco (10-40%)', 'Rechaza todo (<10%)'],
+    scores: [0.00, 0.25, 0.50, 0.75, 1.00] },
+];
+
+function loadChurnRatings(cid) {
+  try { const raw = localStorage.getItem('churn_q_' + cid); return raw ? JSON.parse(raw) : {}; }
+  catch(e) { return {}; }
+}
+
+function saveChurnRatings(cid, ratings) {
+  localStorage.setItem('churn_q_' + cid, JSON.stringify(ratings));
+}
+
+function calcChurnFromRatings(ratings) {
+  let total = 0;
+  CHURN_FACTORS.forEach(f => {
+    const idx = ratings[f.key] !== undefined ? ratings[f.key] : -1;
+    if (idx >= 0 && idx < f.scores.length) {
+      total += f.scores[idx] * f.weight;
+    }
+  });
+  return total;
+}
+
+function onChurnRatingChange(cid, factorKey, ratingIdx) {
+  const ratings = loadChurnRatings(cid);
+  ratings[factorKey] = ratingIdx;
+  saveChurnRatings(cid, ratings);
+  renderChurnQuestionnaire(cid);
+  // Re-render KPIs using questionnaire override
+  const c = getCustomer(cid);
+  if (c) { renderCustomerKPIs(c); renderStrategiesSingle(c); }
+}
+
+function predictChurnWithQuestionnaire(c) {
+  const ratings = loadChurnRatings(c.id);
+  const keys = Object.keys(ratings);
+  if (keys.length === 0) return null; // no questionnaire filled = use formula
+  return calcChurnFromRatings(ratings);
+}
+
+function renderChurnQuestionnaire(cid) {
+  const container = document.getElementById('churnQuestionnaire');
+  if (!container) return;
+  const ratings = loadChurnRatings(cid);
+  const totalChurn = calcChurnFromRatings(ratings);
+  const filledCount = Object.keys(ratings).length;
+
+  let html = '<div class="churn-quest-section">';
+  html += '<h3>Cuestionario Riesgo de Churn (1-5)</h3>';
+  html += '<p class="quest-subtitle">Califica cada factor. El puntaje reemplaza la formula automatica. Aplica a cualquier cliente (A+/A/B/C).</p>';
+
+  CHURN_FACTORS.forEach(f => {
+    const selIdx = ratings[f.key] !== undefined ? ratings[f.key] : -1;
+    html += '<div class="churn-quest-row">';
+    html += `<div class="churn-quest-label"><strong>${f.label}</strong><span>${f.hint}</span></div>`;
+    html += '<div class="churn-quest-rating">';
+    for (let i = 0; i < 5; i++) {
+      html += `<button class="churn-star ${selIdx === i ? 'sel-' + (i+1) : ''}" 
+        onclick="onChurnRatingChange('${cid}','${f.key}',${i})" 
+        title="${f.options[i]}">${i+1}</button>`;
+    }
+    html += '</div>';
+    html += `<div class="churn-quest-impact">${selIdx >= 0 ? '+' + (f.scores[selIdx] * f.weight * 100).toFixed(1) + '%' : '—'}</div>`;
+    html += '</div>';
+  });
+
+  // Total
+  const pct = (totalChurn * 100).toFixed(0);
+  const color = totalChurn <= 0.3 ? '#34d399' : totalChurn <= 0.6 ? '#f59e0b' : '#ef4444';
+  const label = totalChurn <= 0.3 ? 'BAJO' : totalChurn <= 0.6 ? 'MEDIO' : 'ALTO';
+  html += `<div class="churn-quest-total">`;
+  html += `<span class="total-label">Riesgo estimado (cuestionario)</span>`;
+  html += `<span><span class="total-value" style="color:${color}">${pct}%</span>`;
+  html += `<span class="total-sem" style="background:${color}20;color:${color}">${label}</span></span>`;
+  html += `</div>`;
+  html += `<div class="churn-quest-ref">${filledCount}/5 factores calificados · ${filledCount === 5 ? 'Completo ✓' : filledCount === 0 ? 'Sin calificar — se usa formula automatica' : 'Se usan solo los factores calificados'}</div>`;
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+// Override predictChurn to use questionnaire when available
 function predictChurn(c) {
+  const qOverride = predictChurnWithQuestionnaire(c);
+  if (qOverride !== null) return qOverride;
+
   const trend = getVal(c, 'frecuencia_de_compra.tendencia');
   const trendScore = trend === 'decreciente' ? 0.8 :
                      trend === 'estable' ? 0.3 :
