@@ -731,7 +731,7 @@ function enviar() {
     feedback: document.getElementById('feedback').value.trim()
   };
 
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxt-9vXhE7jZtrCN80dI-FrKah8G9FzbSm_h5N9eUEGrci6tNQ7fjr12iCHxR2dkeuP/exec';
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwO6Cye7z2xfGnhjv-JrO-7-hazrMfuxHkVnZ2emvPkMj5XwrwgUN7_DFxKgkQcw1Y/exec';
 
   fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(data) })
     .finally(() => {
