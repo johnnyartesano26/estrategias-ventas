@@ -458,6 +458,14 @@ body {
     <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Atencion y tiempos de servicio</label>
     <div class="star-group" id="starServicio"></div>
 
+    <!-- MAYORISTA ONLY questions -->
+    <div id="mayoristaExtras" style="display:none;">
+      <label style="font-size:14px;font-weight:600;display:block;margin:16px 0 10px;">Calidad en las entregas</label>
+      <div class="card-hint" style="margin-bottom:6px;">Tiempo desde que se toma la orden hasta que se entrega el producto</div>
+      <div class="star-group" id="starEntregas"></div>
+      <input type="text" class="text-input" id="recEntregas" placeholder="Comentario sobre las entregas (opcional)" style="margin-top:8px;">
+    </div>
+
     <!-- BAR ONLY questions -->
     <div id="barExtras" style="display:none;">
       <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Experiencia musical y calidad del sonido</label>
@@ -519,7 +527,7 @@ const CLIENT_LIST = [
 ];
 
 let canal = null;
-let ratings = { nps: null, calidad: null, servicio: null, musica: null, comida: null, higiene: null };
+let ratings = { nps: null, calidad: null, servicio: null, entregas: null, musica: null, comida: null, higiene: null };
 let currentStep = 0;
 let matchedClient = null;
 const totalSteps = 5;
@@ -537,10 +545,11 @@ const totalSteps = 5;
 })();
 
 // Build star groups
-['starCalidad','starServicio'].forEach(id => {
+['starCalidad','starServicio','starEntregas'].forEach(id => {
+  const field = id === 'starCalidad' ? 'calidad' : id === 'starServicio' ? 'servicio' : 'entregas';
   const group = document.getElementById(id);
   for (let i = 1; i <= 5; i++) {
-    group.innerHTML += `<button class="star-btn" onclick="selectStar('${id === 'starCalidad' ? 'calidad' : 'servicio'}', ${i}, this)"></button>`;
+    group.innerHTML += `<button class="star-btn" onclick="selectStar('${field}', ${i}, this)"></button>`;
   }
 });
 
@@ -563,13 +572,13 @@ function selectCanal(btn) {
   label.textContent = canal === 'bar'
     ? '¿Invitarías a amigos al Bar Madre Monte?'
     : '¿Nos recomendarías a otro negocio?';
-  // Show/hide bar extra questions
+  // Show/hide bar/mayorista extra questions
   document.getElementById('barExtras').style.display = canal === 'bar' ? '' : 'none';
-  document.getElementById('ratingsHint').textContent = canal === 'bar'
-    ? '1 = muy mal · 5 = excelente'
-    : '1 = muy mal · 5 = excelente';
-  // Reset bar ratings when switching canal
+  document.getElementById('mayoristaExtras').style.display = canal === 'mayorista' ? '' : 'none';
+  document.getElementById('ratingsHint').textContent = '1 = muy mal · 5 = excelente';
+  // Reset extra ratings when switching canal
   if (canal !== 'bar') { ratings.musica = null; ratings.comida = null; ratings.higiene = null; }
+  if (canal !== 'mayorista') { ratings.entregas = null; }
   checkRatingsDone();
   // Auto-avanzar al siguiente paso
   setTimeout(() => showStep(2), 300);
@@ -609,6 +618,8 @@ function checkRatingsDone() {
   const base = ratings.calidad && ratings.servicio;
   if (canal === 'bar') {
     document.getElementById('ratingsNext').disabled = !(base && ratings.musica && ratings.comida && ratings.higiene);
+  } else if (canal === 'mayorista') {
+    document.getElementById('ratingsNext').disabled = !(base && ratings.entregas);
   } else {
     document.getElementById('ratingsNext').disabled = !base;
   }
@@ -710,6 +721,8 @@ function enviar() {
     nps: ratings.nps,
     calidad_cerveza: ratings.calidad,
     atencion_servicio: ratings.servicio,
+    entregas: ratings.entregas || '',
+    rec_entregas: document.getElementById('recEntregas').value.trim(),
     musica_sonido: ratings.musica || '',
     rec_musica: document.getElementById('recMusica').value.trim(),
     comida: ratings.comida || '',
