@@ -731,9 +731,9 @@ function enviar() {
     feedback: document.getElementById('feedback').value.trim()
   };
 
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzLypAraB4nIPPB0ESY1d1uufuht2ucpcQQ2zkCk_GU_a81XhIP980pInnAuPzbcLhF/exec';
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxt-9vXhE7jZtrCN80dI-FrKah8G9FzbSm_h5N9eUEGrci6tNQ7fjr12iCHxR2dkeuP/exec';
 
-  fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+  fetch(SHEET_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(data) })
     .finally(() => {
       document.getElementById('steps').style.display = 'none';
       document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
