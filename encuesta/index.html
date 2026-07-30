@@ -491,6 +491,11 @@ body {
     <div class="card-label">¿Algo mas que contarnos?</div>
     <div class="card-hint">Una queja, una idea, un elogio... lo que quieras.</div>
     <textarea class="textarea-input" id="feedback" placeholder="Cuentanos que podemos mejorar..."></textarea>
+
+    <label style="font-size:14px;font-weight:600;display:block;margin:20px 0 8px;">¿Queres recibir info de Madre Monte?</label>
+    <div class="card-hint" style="margin-bottom:10px;">Deja tu email y te mandamos novedades, eventos y promos. No es obligatorio.</div>
+    <input type="email" class="text-input" id="emailInput" placeholder="tu@email.com" autocomplete="email">
+
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="prevStep(4)">Atras</button>
       <button class="btn btn-primary" id="submitBtn" onclick="enviar()">Enviar respuestas</button>
@@ -728,6 +733,7 @@ function enviar() {
     comida: ratings.comida || '',
     rec_comida: document.getElementById('recComida').value.trim(),
     higiene: ratings.higiene || '',
+    email: document.getElementById('emailInput').value.trim(),
     feedback: document.getElementById('feedback').value.trim()
   };
 
