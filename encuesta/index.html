@@ -285,7 +285,6 @@ body {
 /* ── Client match badge ── */
 .match-hint {
   margin-top: 12px; padding: 10px 14px;
-  background: rgba(76,175,80,.08); border: 1px solid rgba(76,175,80,.25);
   border-radius: 10px; font-size: 13px; animation: fadeIn .3s ease;
 }
 .match-badge {
@@ -293,9 +292,22 @@ body {
   color: var(--text); font-weight: 500;
 }
 .match-badge::before {
-  content: 'Te encontramos:';
-  font-size: 11px; color: var(--green); font-weight: 600;
+  font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .5px;
+}
+.match-badge.matched::before {
+  content: 'Te encontramos';
+  color: var(--green);
+}
+.match-badge.nuevo::before {
+  content: 'Nuevo';
+  color: var(--gold);
+}
+.match-hint:has(.matched) {
+  background: rgba(76,175,80,.08); border: 1px solid rgba(76,175,80,.3);
+}
+.match-hint:has(.nuevo) {
+  background: rgba(200,138,61,.08); border: 1px solid rgba(200,138,61,.3);
 }
 
 /* ── Success ── */
@@ -599,11 +611,18 @@ function checkClientMatch() {
   const hintEl = document.getElementById('clientMatchHint');
   matchedClient = findClient(input);
 
+  if (!input || input.length < 2) {
+    hintEl.style.display = 'none';
+    return;
+  }
+
   if (matchedClient) {
-    hintEl.innerHTML = '<span class="match-badge">' + matchedClient.id + ' — ' + matchedClient.nombre + '</span>';
+    hintEl.innerHTML = '<span class="match-badge matched">' + matchedClient.id + ' — ' + matchedClient.nombre + '</span>';
     hintEl.style.display = 'block';
   } else {
-    hintEl.style.display = 'none';
+    hintEl.innerHTML = '<span class="match-badge nuevo">Nuevo cliente potencial — se guardara en la base de datos</span>';
+    hintEl.style.display = 'block';
+    matchedClient = { id: 'PROSPECTO', nombre: input };
   }
 }
 
