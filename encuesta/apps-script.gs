@@ -11,6 +11,11 @@ function doPost(e) {
     data.nps,
     data.calidad_cerveza,
     data.atencion_servicio,
+    data.musica_sonido || '',
+    data.rec_musica || '',
+    data.comida || '',
+    data.rec_comida || '',
+    data.higiene || '',
     data.feedback || ''
   ]);
 

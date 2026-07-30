@@ -238,6 +238,31 @@ body {
   box-shadow: 0 6px 18px rgba(200,138,61,.18);
 }
 
+/* ── Bar specific rate (Regular / Agradable / Excelente) ── */
+.bar-rate-group {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.bar-rate-btn {
+  flex: 1; min-width: 100px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  text-align: center;
+}
+.bar-rate-btn:hover { border-color: var(--gold); }
+.bar-rate-btn.selected {
+  border-color: var(--gold);
+  background: var(--gold-pale);
+  font-weight: 700;
+  color: var(--gold);
+}
+
 /* ── Textarea ── */
 .textarea-input {
   width: 100%;
@@ -425,13 +450,27 @@ body {
   <!-- STEP 3: Ratings -->
   <div class="card step" data-step="3">
     <div class="card-label">Calidad y servicio</div>
-    <div class="card-hint">1 = muy mal · 5 = excelente</div>
+    <div class="card-hint" id="ratingsHint">1 = muy mal · 5 = excelente</div>
 
     <label style="font-size:14px;font-weight:600;display:block;margin:16px 0 10px;">Presentacion y calidad de las cervezas</label>
     <div class="star-group" id="starCalidad"></div>
 
     <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Atencion y tiempos de servicio</label>
     <div class="star-group" id="starServicio"></div>
+
+    <!-- BAR ONLY questions -->
+    <div id="barExtras" style="display:none;">
+      <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Experiencia musical y calidad del sonido</label>
+      <div class="bar-rate-group" id="rateMusica"></div>
+      <input type="text" class="text-input" id="recMusica" placeholder="Recomendacion musical (opcional)" style="margin-top:8px;">
+
+      <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Si probaste la comida, califica tu experiencia</label>
+      <div class="bar-rate-group" id="rateComida"></div>
+      <input type="text" class="text-input" id="recComida" placeholder="Recomendacion gastronomica (opcional)" style="margin-top:8px;">
+
+      <label style="font-size:14px;font-weight:600;display:block;margin:24px 0 10px;">Califica la higiene del lugar</label>
+      <div class="bar-rate-group" id="rateHigiene"></div>
+    </div>
 
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="prevStep(3)">Atras</button>
@@ -480,7 +519,7 @@ const CLIENT_LIST = [
 ];
 
 let canal = null;
-let ratings = { nps: null, calidad: null, servicio: null };
+let ratings = { nps: null, calidad: null, servicio: null, musica: null, comida: null, higiene: null };
 let currentStep = 0;
 let matchedClient = null;
 const totalSteps = 5;
@@ -505,6 +544,16 @@ const totalSteps = 5;
   }
 });
 
+// Build bar rate groups (Regular / Agradable / Excelente)
+['rateMusica','rateComida','rateHigiene'].forEach(id => {
+  const group = document.getElementById(id);
+  const field = id === 'rateMusica' ? 'musica' : id === 'rateComida' ? 'comida' : 'higiene';
+  const opts = ['Regular','Agradable','Excelente'];
+  opts.forEach((label, i) => {
+    group.innerHTML += `<button class="bar-rate-btn" onclick="selectBarRate('${field}', ${i+1}, this)">${label}</button>`;
+  });
+});
+
 function selectCanal(btn) {
   document.querySelectorAll('#canalGroup .select-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
@@ -514,6 +563,14 @@ function selectCanal(btn) {
   label.textContent = canal === 'bar'
     ? '¿Invitarías a amigos al Bar Madre Monte?'
     : '¿Nos recomendarías a otro negocio?';
+  // Show/hide bar extra questions
+  document.getElementById('barExtras').style.display = canal === 'bar' ? '' : 'none';
+  document.getElementById('ratingsHint').textContent = canal === 'bar'
+    ? '1 = muy mal · 5 = excelente'
+    : '1 = muy mal · 5 = excelente';
+  // Reset bar ratings when switching canal
+  if (canal !== 'bar') { ratings.musica = null; ratings.comida = null; ratings.higiene = null; }
+  checkRatingsDone();
   // Auto-avanzar al siguiente paso
   setTimeout(() => showStep(2), 300);
 }
@@ -540,8 +597,21 @@ function selectStar(field, value, btn) {
   checkRatingsDone();
 }
 
+function selectBarRate(field, value, btn) {
+  const group = btn.parentElement;
+  group.querySelectorAll('.bar-rate-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  ratings[field] = value;
+  checkRatingsDone();
+}
+
 function checkRatingsDone() {
-  document.getElementById('ratingsNext').disabled = !(ratings.calidad && ratings.servicio);
+  const base = ratings.calidad && ratings.servicio;
+  if (canal === 'bar') {
+    document.getElementById('ratingsNext').disabled = !(base && ratings.musica && ratings.comida && ratings.higiene);
+  } else {
+    document.getElementById('ratingsNext').disabled = !base;
+  }
 }
 
 function updateSteps(idx) {
@@ -640,6 +710,11 @@ function enviar() {
     nps: ratings.nps,
     calidad_cerveza: ratings.calidad,
     atencion_servicio: ratings.servicio,
+    musica_sonido: ratings.musica || '',
+    rec_musica: document.getElementById('recMusica').value.trim(),
+    comida: ratings.comida || '',
+    rec_comida: document.getElementById('recComida').value.trim(),
+    higiene: ratings.higiene || '',
     feedback: document.getElementById('feedback').value.trim()
   };
 
